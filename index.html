@@ -679,8 +679,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 // 1. Crea un proyecto en https://supabase.com
 // 2. Ejecuta schema.sql (incluido junto a este archivo) en el SQL Editor de Supabase
 // 3. Pega aquí tu Project URL y anon public key (Settings → API)
-const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
-const SUPABASE_ANON_KEY = 'TU-ANON-PUBLIC-KEY';
+const SUPABASE_URL = 'https://crhnaheqxxhjstdumqgj.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNyaG5haGVxeHhoanN0ZHVtcWdqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQxMzk2NDAsImV4cCI6MjA5OTcxNTY0MH0.3xIyI0Pcb2qY7n5XSrneaNGPqjLj6RttdEjCDBR6kA8';
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true }
