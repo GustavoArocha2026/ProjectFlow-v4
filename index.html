@@ -436,6 +436,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="scard c-yellow"><div class="slabel">Por cobrar</div><div class="sval" id="s-pending">0€</div><div class="ssub" id="s-pending-s">pendiente</div></div>
         <div class="scard c-red"><div class="slabel">Alertas ETA activas</div><div class="sval" id="s-eta">0</div><div class="ssub">proyectos con aviso</div></div>
       </div>
+
+      <div class="card" style="margin-bottom:18px">
+        <div class="ch"><span class="ct2">💰 Control de Costes (todos los proyectos activos)</span></div>
+        <div class="cb">
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:14px">
+            <div><div class="slabel">Presupuesto total</div><div class="sval" id="cost-budget" style="font-size:19px">0€</div></div>
+            <div><div class="slabel">Coste estimado</div><div class="sval" id="cost-est" style="font-size:19px;color:var(--accent3)">0€</div></div>
+            <div><div class="slabel">Coste real</div><div class="sval" id="cost-act" style="font-size:19px">0€</div></div>
+            <div><div class="slabel" id="cost-dev-label">Desviación</div><div class="sval" id="cost-dev" style="font-size:19px">0€</div></div>
+          </div>
+          <div id="cost-overrun-list"></div>
+        </div>
+      </div>
+
       <div style="display:grid;grid-template-columns:1fr 320px;gap:18px">
         <div style="display:flex;flex-direction:column;gap:18px">
           <div class="card">
@@ -577,6 +591,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
       <input type="hidden" id="ph-id"><input type="hidden" id="ph-pid">
       <div class="fg"><label class="fl">Nombre de la Fase *</label><input class="fi" id="ph-name" placeholder="Ej: Fase 1: Análisis e Investigación"></div>
       <div class="fg"><label class="fl">Orden de Visualización</label><input type="number" class="fi" id="ph-sort" value="1" min="1"></div>
+      <div style="font-size:11px;color:var(--text3);margin:10px 0 6px">Costes directos de la fase (no asociados a ninguna tarea concreta)</div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">Coste Directo Estimado</label><input type="number" class="fi" id="ph-cost-est" placeholder="0" step="0.01" min="0"></div>
+        <div class="fg"><label class="fl">Coste Directo Real</label><input type="number" class="fi" id="ph-cost-act" placeholder="0" step="0.01" min="0"></div>
+      </div>
     </div>
     <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-phase')">Cancelar</button><button class="btn btn-primary" onclick="savePhase()">💾 Guardar</button></div>
   </div>
@@ -595,6 +614,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="fg"><label class="fl">Horas Estimadas</label><input type="number" class="fi" id="ta-hours" placeholder="0" step="0.5"></div>
         <div class="fg"><label class="fl">Fecha de Inicio</label><input type="date" class="fi" id="ta-start"></div>
         <div class="fg"><label class="fl">Fecha Límite</label><input type="date" class="fi" id="ta-due"></div>
+        <div class="fg"><label class="fl">Coste Estimado</label><input type="number" class="fi" id="ta-cost-est" placeholder="0" step="0.01" min="0"></div>
+        <div class="fg"><label class="fl">Coste Real</label><input type="number" class="fi" id="ta-cost-act" placeholder="0" step="0.01" min="0"></div>
       </div>
       <div class="fg"><label class="fl">Descripción</label><textarea class="fta" id="ta-desc" placeholder="Detalles de la tarea..."></textarea></div>
     </div>
@@ -726,6 +747,26 @@ const fmtCur = (n, c='EUR') => {
   const s={EUR:'€', USD:'$', GBP:'£'};
   return (n||0).toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2}) + (s[c]||c);
 };
+
+// ── COST AGGREGATION: tarea → fase → proyecto ──────────────────────────
+function phaseCosts(phaseId){
+  const ph = db.phases.find(x=>x.phase_id===phaseId);
+  const tasks = db.tasks.filter(t=>t.phase_id===phaseId);
+  const est = tasks.reduce((s,t)=>s+(+t.estimated_cost||0),0) + (+ph?.direct_estimated_cost||0);
+  const act = tasks.reduce((s,t)=>s+(+t.actual_cost||0),0) + (+ph?.direct_actual_cost||0);
+  return {est, act};
+}
+
+function projectCosts(projectId){
+  const phases = db.phases.filter(x=>x.project_id===projectId);
+  let est=0, act=0;
+  phases.forEach(ph=>{ const c=phaseCosts(ph.phase_id); est+=c.est; act+=c.act; });
+  // tareas del proyecto que no pertenecen a ninguna fase
+  const orphanTasks = db.tasks.filter(t=>t.project_id===projectId && !t.phase_id);
+  est += orphanTasks.reduce((s,t)=>s+(+t.estimated_cost||0),0);
+  act += orphanTasks.reduce((s,t)=>s+(+t.actual_cost||0),0);
+  return {est, act};
+}
 const daysUntil = d => {
   if(!d) return null;
   const diff = new Date(d) - new Date(today());
@@ -1200,6 +1241,8 @@ function openPhaseModal(pid,id){
   document.getElementById('ph-pid').value = pid||ph?.project_id||'';
   document.getElementById('ph-name').value = ph?.name||'';
   document.getElementById('ph-sort').value = ph?.sort_order||(db.phases.filter(x=>x.project_id===(pid||ph?.project_id)).length+1);
+  document.getElementById('ph-cost-est').value = ph?.direct_estimated_cost||'';
+  document.getElementById('ph-cost-act').value = ph?.direct_actual_cost||'';
   open_mo('mo-phase');
 }
 
@@ -1208,7 +1251,11 @@ async function savePhase(){
   if(!name){toast('El nombre de la fase es obligatorio','err');return}
   const pid=document.getElementById('ph-pid').value;
   const id=document.getElementById('ph-id').value;
-  const data={project_id:pid,name,sort_order:parseInt(document.getElementById('ph-sort').value)||1};
+  const data={
+    project_id:pid,name,sort_order:parseInt(document.getElementById('ph-sort').value)||1,
+    direct_estimated_cost:parseFloat(document.getElementById('ph-cost-est').value)||0,
+    direct_actual_cost:parseFloat(document.getElementById('ph-cost-act').value)||0
+  };
   try{
     if(id){
       const {data:updated, error} = await sb.from('phases').update(data).eq('phase_id', id).select().single();
@@ -1257,6 +1304,8 @@ function openTaskModal(pid,phid,id){
   document.getElementById('ta-hours').value = t?.estimated_hours||'';
   document.getElementById('ta-start').value = fmtDate(t?.start_date)||today();
   document.getElementById('ta-due').value = fmtDate(t?.due_date)||'';
+  document.getElementById('ta-cost-est').value = t?.estimated_cost||'';
+  document.getElementById('ta-cost-act').value = t?.actual_cost||'';
   open_mo('mo-task');
 }
 
@@ -1274,7 +1323,9 @@ async function saveTask(){
     assigned_to:document.getElementById('ta-assigned').value.trim(),
     estimated_hours:parseFloat(document.getElementById('ta-hours').value)||0,
     start_date:document.getElementById('ta-start').value||null,
-    due_date:document.getElementById('ta-due').value||null
+    due_date:document.getElementById('ta-due').value||null,
+    estimated_cost:parseFloat(document.getElementById('ta-cost-est').value)||0,
+    actual_cost:parseFloat(document.getElementById('ta-cost-act').value)||0
   };
   try{
     if(id){
@@ -1535,6 +1586,41 @@ function renderDashboard(){
   const pendInv=db.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+(+i.total_amount||0),0);
   document.getElementById('s-pending').textContent=fmtCur(pendInv);
 
+  // Control de costes agregado (proyectos activos)
+  const activeProjects = db.projects.filter(p=>p.status==='active');
+  let dashBudget=0, dashEst=0, dashAct=0;
+  const overrunRows=[];
+  activeProjects.forEach(p=>{
+    const c = projectCosts(p.project_id);
+    const budget = +p.total_budget||0;
+    dashBudget += budget; dashEst += c.est; dashAct += c.act;
+    if(budget>0 && c.act>budget) overrunRows.push({p, over:c.act-budget, act:c.act, budget});
+  });
+  document.getElementById('cost-budget').textContent = fmtCur(dashBudget);
+  document.getElementById('cost-est').textContent = fmtCur(dashEst);
+  const dashActEl = document.getElementById('cost-act');
+  dashActEl.textContent = fmtCur(dashAct);
+  dashActEl.style.color = (dashBudget>0 && dashAct>dashBudget) ? 'var(--red)' : 'var(--green)';
+  const dev = dashBudget - dashAct;
+  document.getElementById('cost-dev-label').textContent = dev>=0 ? 'Restante' : 'Sobrecoste';
+  const devEl = document.getElementById('cost-dev');
+  devEl.textContent = fmtCur(Math.abs(dev));
+  devEl.style.color = dev>=0 ? 'var(--green)' : 'var(--red)';
+
+  const overrunEl = document.getElementById('cost-overrun-list');
+  if(!overrunRows.length){
+    overrunEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">Ningún proyecto activo supera su presupuesto. 👍</div>';
+  } else {
+    overrunRows.sort((a,b)=>b.over-a.over);
+    overrunEl.innerHTML = '<div style="font-size:11px;color:var(--text3);margin-bottom:8px">⚠️ Proyectos con sobrecoste:</div>' +
+      overrunRows.map(r=>`<div class="trow" style="grid-template-columns:1fr 110px 110px 110px;cursor:pointer" onclick="showDetail('${r.p.project_id}')">
+        <div style="font-weight:500;font-size:12.5px">${r.p.name}</div>
+        <div style="font-size:12px;color:var(--text2)">Presup: ${fmtCur(r.budget,r.p.currency)}</div>
+        <div style="font-size:12px;color:var(--red)">Real: ${fmtCur(r.act,r.p.currency)}</div>
+        <div style="font-size:12px;font-weight:600;color:var(--red)">+${fmtCur(r.over,r.p.currency)}</div>
+      </div>`).join('');
+  }
+
   // Recent projects
   const rp=[...db.projects].sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0)).slice(0,5);
   const rpEl=document.getElementById('dash-projects');
@@ -1600,6 +1686,10 @@ function renderDetail(id){
   
   const totalInv=db.invoices.filter(i=>i.project_id===p.project_id).reduce((s,i)=>s+(+i.total_amount||0),0);
   const paidInv=db.invoices.filter(i=>i.project_id===p.project_id&&i.status==='paid').reduce((s,i)=>s+(+i.total_amount||0),0);
+  const pCosts = projectCosts(p.project_id);
+  const budget = +p.total_budget||0;
+  const remaining = budget - pCosts.act;
+  const overBudget = budget > 0 && pCosts.act > budget;
   
   const tasks=db.tasks.filter(t=>t.project_id===p.project_id);
   const notes=db.notes?.filter(n=>n.project_id===p.project_id)||[];
@@ -1640,6 +1730,16 @@ function renderDetail(id){
 
     ${etaConfigBlock}
 
+    <div class="card" style="margin-bottom:18px">
+      <div class="ch"><span class="ct2">💰 Control de Costes</span></div>
+      <div class="cb" style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px">
+        <div><div class="slabel">Presupuesto</div><div class="sval" style="font-size:19px">${fmtCur(budget,p.currency)}</div></div>
+        <div><div class="slabel">Coste Estimado</div><div class="sval" style="font-size:19px;color:var(--accent3)">${fmtCur(pCosts.est,p.currency)}</div></div>
+        <div><div class="slabel">Coste Real</div><div class="sval" style="font-size:19px;color:${overBudget?'var(--red)':'var(--green)'}">${fmtCur(pCosts.act,p.currency)}</div></div>
+        <div><div class="slabel">${remaining>=0?'Restante':'Sobrecoste'}</div><div class="sval" style="font-size:19px;color:${remaining>=0?'var(--green)':'var(--red)'}">${fmtCur(Math.abs(remaining),p.currency)}</div></div>
+      </div>
+    </div>
+
     <div class="tabs">
       <button class="tab ${currentTab==='phases'?'active':''}" onclick="setTab('phases')">Fases y Tareas (${tasks.length})</button>
       <button class="tab ${currentTab==='tasks'?'active':''}" onclick="setTab('tasks')">Vista de Lista</button>
@@ -1658,7 +1758,7 @@ function renderDetail(id){
       ${!tasks.length?'<div class="empty"><p>Sin tareas</p></div>':
         `<div class="card">`+tasks.map(t=>`<div class="task-item" style="padding:10px 16px">
           <div class="tchk ${t.status==='completed'?'done':''}" onclick="toggleTask('${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
-          <div style="flex:1"><div class="ttitle ${t.status==='completed'?'struck':''}">${t.title}</div><div style="font-size:11px;color:var(--text3)">${db.phases.find(ph=>ph.phase_id===t.phase_id)?.name||'Sin fase'} ${t.assigned_to?'· 👤 '+t.assigned_to:''} ${t.due_date?'· 📅 '+fmtDateL(t.due_date):''}</div></div>
+          <div style="flex:1"><div class="ttitle ${t.status==='completed'?'struck':''}">${t.title}</div><div style="font-size:11px;color:var(--text3)">${db.phases.find(ph=>ph.phase_id===t.phase_id)?.name||'Sin fase'} ${t.assigned_to?'· 👤 '+t.assigned_to:''} ${t.due_date?'· 📅 '+fmtDateL(t.due_date):''} ${(t.estimated_cost||t.actual_cost)?'· 💰 '+fmtCur(t.actual_cost||0,p.currency):''}</div></div>
           <div><span class="prio-${t.priority}" style="font-size:11px;text-transform:uppercase">${t.priority}</span></div>
           <div style="margin-left:14px;display:flex;gap:4px">
             <button class="bicon" onclick="openTaskModal('','','${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
@@ -1721,10 +1821,12 @@ function renderDetail(id){
       const phTasks=db.tasks.filter(t=>t.phase_id===ph.phase_id);
       const phDone=phTasks.filter(t=>t.status==='completed').length;
       const phPct=phTasks.length ? Math.round((phDone/phTasks.length)*100) : 0;
+      const phc = phaseCosts(ph.phase_id);
+      const phOver = phc.act > phc.est && phc.est > 0;
       return `<div class="phase-card open" id="phc-${ph.phase_id}">
         <div class="phase-hdr" onclick="togglePh('${ph.phase_id}')">
           <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">📁 ${ph.name}</div>
-          <div style="font-size:11px;color:var(--text3)">Orden: ${ph.sort_order}</div>
+          <div style="font-size:11px;color:var(--text3)">Orden: ${ph.sort_order}<br><span style="color:${phOver?'var(--red)':'var(--text3)'}">Est: ${fmtCur(phc.est,p.currency)} · Real: ${fmtCur(phc.act,p.currency)}</span></div>
           <div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">${phPct}% (${phDone}/${phTasks.length})</div><div class="pbar" style="width:70px"><div class="pfill g" style="width:${phPct}%"></div></div></div>
           <div style="grid-column:span 2;justify-self:end;display:flex;gap:4px" onclick="event.stopPropagation()">
             <button class="btn btn-secondary btn-xs" onclick="openTaskModal('${p.project_id}','${ph.phase_id}','')">+ Tarea</button>
@@ -1739,6 +1841,7 @@ function renderDetail(id){
               <div class="ttitle ${t.status==='completed'?'struck':''}">${t.title}</div>
               <div style="font-size:11px;color:var(--text3);width:110px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">${t.assigned_to?'👤 '+t.assigned_to:''}</div>
               <div style="font-size:11px;color:var(--text3);width:90px">${t.due_date?'📅 '+fmtDateL(t.due_date):''}</div>
+              <div style="font-size:11px;color:var(--text3);width:100px">${(t.estimated_cost||t.actual_cost)?`💰 ${fmtCur(t.actual_cost||0,p.currency)}`:''}</div>
               <div style="width:70px"><span class="prio-${t.priority}" style="font-size:10px;text-transform:uppercase">${t.priority}</span></div>
               <div style="display:flex;gap:4px">
                 <button class="bicon" onclick="openTaskModal('','','${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
