@@ -652,7 +652,12 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
             <option value="report">Informe</option><option value="design">Diseño</option><option value="other">Otro</option>
           </select></div>
         <div class="fg"><label class="fl">Versión</label><input class="fi" id="dc-version" placeholder="v1.0"></div>
-        <div class="fg ffull"><label class="fl">URL / Enlace</label><input class="fi" id="dc-url" placeholder="https://..."></div>
+        <div class="fg ffull">
+          <label class="fl">Archivo (subir desde tu PC)</label>
+          <input type="file" class="fi" id="dc-file">
+          <div id="dc-file-current" style="font-size:11.5px;color:var(--text3);margin-top:4px"></div>
+        </div>
+        <div class="fg ffull"><label class="fl">O pega una URL / Enlace externo</label><input class="fi" id="dc-url" placeholder="https://..."></div>
         <div class="fg ffull"><label class="fl">Descripción</label><textarea class="fta" id="dc-desc" placeholder="Descripción..."></textarea></div>
         <div class="fg"><label class="fl">Estado</label>
           <select class="fsel" id="dc-status">
@@ -1458,6 +1463,9 @@ function openDocModal(pid,id){
   document.getElementById('dc-url').value = doc?.url||'';
   document.getElementById('dc-desc').value = doc?.description||'';
   document.getElementById('dc-status').value = doc?.status||'draft';
+  document.getElementById('dc-file').value = '';
+  const curEl = document.getElementById('dc-file-current');
+  curEl.innerHTML = (doc?.url) ? `Archivo actual: <a href="${doc.url}" target="_blank" style="color:var(--accent)">${doc.url.split('/').pop()}</a> (sube uno nuevo para reemplazarlo)` : '';
   open_mo('mo-doc');
 }
 
@@ -1466,15 +1474,38 @@ async function saveDoc(){
   const pid=document.getElementById('dc-pid').value;
   if(!name||!pid){toast('El nombre del documento es obligatorio','err');return}
   const id=document.getElementById('dc-id').value;
-  const data={
-    project_id:pid,name,type:document.getElementById('dc-type').value,
-    version:document.getElementById('dc-version').value.trim(),
-    url:document.getElementById('dc-url').value.trim(),
-    description:document.getElementById('dc-desc').value.trim(),
-    status:document.getElementById('dc-status').value,
-    updated_at: now()
-  };
-  try{
+  const fileInput = document.getElementById('dc-file');
+  const file = fileInput.files[0];
+
+  if (file && file.size > 50 * 1024 * 1024) {
+    toast('El archivo supera el límite de 50 MB','err'); return;
+  }
+
+  let fileUrl = document.getElementById('dc-url').value.trim();
+
+  const saveBtn = document.querySelector('#mo-doc .btn-primary');
+  const originalBtnText = saveBtn.textContent;
+
+  try {
+    if (file) {
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Subiendo archivo...';
+      const path = `${pid}/${uid()}-${file.name}`;
+      const { error: upErr } = await sb.storage.from('project-files').upload(path, file, { upsert: false });
+      if (upErr) throw upErr;
+      const { data: pub } = sb.storage.from('project-files').getPublicUrl(path);
+      fileUrl = pub.publicUrl;
+    }
+
+    const data={
+      project_id:pid,name,type:document.getElementById('dc-type').value,
+      version:document.getElementById('dc-version').value.trim(),
+      url:fileUrl,
+      description:document.getElementById('dc-desc').value.trim(),
+      status:document.getElementById('dc-status').value,
+      updated_at: now()
+    };
+
     if(id){
       const {data:updated, error} = await sb.from('documents').update(data).eq('document_id', id).select().single();
       if(error) throw error;
@@ -1488,6 +1519,9 @@ async function saveDoc(){
     if(currentView==='detail') renderDetail(pid||currentProjectId);
   } catch(e) {
     console.error(e); toast('Error al guardar el documento: '+e.message,'err');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = originalBtnText;
   }
 }
 
