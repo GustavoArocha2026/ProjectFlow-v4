@@ -545,8 +545,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="mb">
       <input type="hidden" id="p-id">
       <div class="fgrid">
-        <div class="fg"><label class="fl">Nombre del Proyecto *</label><input class="fi" id="p-name" placeholder="Ej: Rediseño Web E-commerce"></div>
-        <div class="fg"><label class="fl">Cliente *</label><input class="fi" id="p-client" placeholder="Ej: Acme Corp"></div>
+        <div class="fg"><label class="fl">Nombre del Proyecto *</label><input class="fi" id="p-name" placeholder="Ej: Recepción y transporte de depósitos CNTR MREU4554554"></div>
+        <div class="fg"><label class="fl">Cliente *</label><input class="fi" id="p-client" placeholder="Ej: DISA GAS SAU"></div>
         <div class="fg"><label class="fl">Responsable / Manager</label><input class="fi" id="p-manager" placeholder="Nombre del responsable"></div>
         <div class="fg fgrid">
           <div class="fg"><label class="fl">Estado</label><select class="fsel" id="p-status"><option value="planning">Planificación</option><option value="active" selected>Activo</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></div>
@@ -556,7 +556,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
         <div class="fg"><label class="fl">Moneda</label><select class="fsel" id="p-currency"><option value="EUR">EUR (€)</option><option value="USD">USD ($)</option><option value="GBP">GBP (£)</option></select></div>
         <div class="fg"><label class="fl">Fecha de Inicio</label><input type="date" class="fi" id="p-start"></div>
         <div class="fg"><label class="fl">Fecha de Fin Prevista</label><input type="date" class="fi" id="p-end"></div>
-        <div class="fg ffull"><label class="fl">Etiquetas (separadas por comas)</label><input class="fi" id="p-tags" placeholder="Ej: desarrollo, marketing, urgente"></div>
+        <div class="fg ffull"><label class="fl">Etiquetas (separadas por comas)</label><input class="fi" id="p-tags" placeholder="Ej: transporte, despacho, urgente"></div>
         <div class="fg ffull"><label class="fl">Descripción</label><textarea class="fta" id="p-desc" placeholder="Breve descripción del proyecto..."></textarea></div>
       </div>
 
@@ -566,11 +566,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           Configuración de Alerta Crítica (ETA / Plazo Logístico)
         </div>
         <div class="fgrid">
-          <div class="fg"><label class="fl">Nombre ETA</label><input class="fi fi-eta" id="p-eta-name" placeholder="Ej: Entrega cliente, Demo..."></div>
+          <div class="fg"><label class="fl">Nombre ETA</label><input class="fi fi-eta" id="p-eta-name" placeholder="Ej: Llegada a LPA, Aviso a cliente..."></div>
           <div class="fg"><label class="fl">Fecha ETA *</label><input type="date" class="fi fi-eta" id="p-eta-date"></div>
           <div class="fg"><label class="fl">Avisar con X días de antelación</label><input type="number" class="fi fi-eta" id="p-eta-warn" value="7" min="1" max="90" placeholder="7"></div>
           <div class="fg"><label class="fl">Nivel de urgencia (días restantes)</label><input type="number" class="fi fi-eta" id="p-eta-urgent" value="3" min="1" max="30" placeholder="3"></div>
-          <div class="fg ffull"><label class="fl">Notas adicionales de la alerta</label><input class="fi fi-eta" id="p-eta-notes" placeholder="Ej: Penalización si se retrasa..."></div>
+          <div class="fg ffull"><label class="fl">Notas adicionales de la alerta</label><input class="fi fi-eta" id="p-eta-notes" placeholder="Ej: Penalización si se retrasa, contactar a Mel Gibson..."></div>
           
           <div class="fg ffull" style="flex-direction:row;align-items:center;gap:8px;padding-top:6px;margin-bottom:0">
             <input type="checkbox" id="p-eta-disabled" style="width:16px;height:16px;cursor:pointer">
@@ -589,7 +589,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="mh"><span class="mt2" id="mph">Nueva Fase</span><button class="mclose" onclick="close_mo('mo-phase')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
     <div class="mb">
       <input type="hidden" id="ph-id"><input type="hidden" id="ph-pid">
-      <div class="fg"><label class="fl">Nombre de la Fase *</label><input class="fi" id="ph-name" placeholder="Ej: Fase 1: Análisis e Investigación"></div>
+      <div class="fg"><label class="fl">Nombre de la Fase *</label><input class="fi" id="ph-name" placeholder="Ej: Fase 1: Transporte desde origen, Descarga con estibadores"></div>
       <div class="fg"><label class="fl">Orden de Visualización</label><input type="number" class="fi" id="ph-sort" value="1" min="1"></div>
       <div style="font-size:11px;color:var(--text3);margin:10px 0 6px">Costes directos de la fase (no asociados a ninguna tarea concreta)</div>
       <div class="fgrid">
@@ -649,7 +649,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="mb">
       <input type="hidden" id="no-id"><input type="hidden" id="no-pid">
       <div class="fg"><label class="fl">Proyecto Asociado (Opcional)</label><select class="fsel" id="no-select-pid"><option value="">Nota global / Sin proyecto</option></select></div>
-      <div class="fg"><label class="fl">Categoría / Etiqueta</label><input class="fi" id="no-tag" placeholder="Ej: Credenciales, Reunión, Idea"></div>
+      <div class="fg"><label class="fl">Categoría / Etiqueta</label><input class="fi" id="no-tag" placeholder="Ej: Transporte, Despacho, Reunión, Idea..."></div>
       <div class="fg"><label class="fl">Contenido de la nota *</label><textarea class="fta" id="no-content" style="min-height:140px" placeholder="Escribe aquí anotaciones, accesos rápidos..."></textarea></div>
       <div class="fg" style="flex-direction:row;align-items:center;gap:6px;margin-bottom:0;padding-top:4px">
         <input type="checkbox" id="no-pinned" style="width:14px;height:14px;cursor:pointer"><label for="no-pinned" style="font-size:12px;color:var(--text2);cursor:pointer">Fijar esta nota en la parte superior</label>
