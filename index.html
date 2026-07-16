@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProjectFlow — Gestión de Proyectos</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#0a0a0f; --bg2:#111118; --bg3:#18181f; --bg4:#1f1f28;
+  --border:#2a2a38; --border2:#353545;
+  --text:#e8e8f0; --text2:#9898b8; --text3:#5a5a78;
+  --accent:#7c6af7; --accent2:#5b4de0; --accent3:#a594ff;
+  --green:#3ecf8e; --red:#f06292; --yellow:#ffd166; --blue:#48cae4; --orange:#ff9f43;
+  --radius:12px; --radius2:8px;
+  --shadow:0 4px 24px rgba(0,0,0,.4);
+  --tr:0.15s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;font-size:14px;line-height:1.6}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+
+/* LAYOUT */
+.app{display:flex;height:100vh}
+
+/* SIDEBAR */
+.sidebar{width:220px;flex-shrink:0;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:0;position:relative;z-index:10}
+.logo{padding:20px 20px 18px;border-bottom:1px solid var(--border)}
+.logo-mark{font-family:'DM Serif Display',serif;font-size:21px;letter-spacing:-.5px;display:flex;align-items:center;gap:10px}
+.logo-dot{width:8px;height:8px;background:var(--accent);border-radius:50%;box-shadow:0 0 10px var(--accent);flex-shrink:0}
+.logo-sub{font-size:9px;color:var(--text3);letter-spacing:2px;text-transform:uppercase;margin-top:3px;padding-left:18px}
+.nav{padding:14px 10px;flex:1;display:flex;flex-direction:column;gap:1px;overflow-y:auto}
+.nav-sep{font-size:9px;letter-spacing:2px;color:var(--text3);text-transform:uppercase;padding:10px 8px 5px}
+.nb{display:flex;align-items:center;gap:9px;padding:8px 10px;border:none;background:none;cursor:pointer;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:400;border-radius:var(--radius2);width:100%;text-align:left;transition:all var(--tr);position:relative}
+.nb:hover{background:var(--bg3);color:var(--text)}
+.nb.active{background:rgba(124,106,247,.15);color:var(--accent3);font-weight:500}
+.nb.active::before{content:'';position:absolute;left:0;top:50%;transform:translateY(-50%);width:3px;height:16px;background:var(--accent);border-radius:0 2px 2px 0}
+.nb svg{width:15px;height:15px;flex-shrink:0}
+.nb .ct{margin-left:auto;background:var(--bg4);color:var(--text3);font-size:10px;padding:1px 6px;border-radius:10px;min-width:18px;text-align:center}
+.nb .ct.alert{background:rgba(240,98,146,.2);color:var(--red)}
+.sidebar-foot{padding:12px 10px;border-top:1px solid var(--border)}
+.save-status{font-size:11px;color:var(--text3);display:flex;align-items:center;gap:6px;padding:5px 8px}
+.save-dot{width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;transition:all .3s}
+.save-dot.saved{background:var(--green);box-shadow:0 0 6px var(--green)}
+.save-dot.saving{background:var(--yellow);animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* MAIN */
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.topbar{height:56px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 24px;gap:12px;background:var(--bg2);flex-shrink:0}
+.topbar-title{font-family:'DM Serif Display',serif;font-size:18px;flex:1}
+.content{flex:1;overflow-y:auto;padding:24px}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;border-radius:var(--radius2);transition:all var(--tr)}
+.btn svg{width:13px;height:13px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 14px rgba(124,106,247,.35)}
+.btn-secondary{background:var(--bg3);color:var(--text2);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--bg4);color:var(--text)}
+.btn-danger{background:rgba(240,98,146,.12);color:var(--red);border:1px solid rgba(240,98,146,.25)}
+.btn-danger:hover{background:rgba(240,98,146,.22)}
+.btn-success{background:rgba(62,207,142,.12);color:var(--green);border:1px solid rgba(62,207,142,.25)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+.bicon{padding:6px;border-radius:var(--radius2);background:var(--bg3);border:1px solid var(--border);color:var(--text2);cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all var(--tr)}
+.bicon:hover{background:var(--bg4);color:var(--text)}
+.bicon svg{width:14px;height:14px}
+
+/* VIEWS */
+.view{display:none}
+.view.active{display:block}
+
+/* STATS */
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:24px}
+.scard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;transition:border-color var(--tr)}
+.scard:hover{border-color:var(--border2)}
+.scard::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.scard.c-purple::before{background:var(--accent)}
+.scard.c-green::before{background:var(--green)}
+.scard.c-yellow::before{background:var(--yellow)}
+.scard.c-blue::before{background:var(--blue)}
+.scard.c-red::before{background:var(--red)}
+.slabel{font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px}
+.sval{font-family:'DM Serif Display',serif;font-size:30px;line-height:1}
+.ssub{font-size:11px;color:var(--text3);margin-top:5px}
+
+/* CARD */
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden}
+.ch{padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.ct2{font-size:13px;font-weight:500}
+.cb{padding:18px}
+
+/* BADGES */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-size:11px;font-weight:500}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.b-active{background:rgba(62,207,142,.15);color:var(--green)}
+.b-planning{background:rgba(255,159,67,.15);color:var(--orange)}
+.b-paused{background:rgba(255,209,102,.15);color:var(--yellow)}
+.b-completed{background:rgba(72,202,228,.15);color:var(--blue)}
+.b-cancelled{background:rgba(240,98,146,.15);color:var(--red)}
+.b-pending{background:rgba(148,148,184,.15);color:var(--text2)}
+.b-in_progress{background:rgba(62,207,142,.15);color:var(--green)}
+.b-invoiced{background:rgba(124,106,247,.15);color:var(--accent3)}
+.b-paid{background:rgba(62,207,142,.15);color:var(--green)}
+.b-draft{background:rgba(148,148,184,.15);color:var(--text2)}
+.b-sent{background:rgba(124,106,247,.15);color:var(--accent3)}
+.b-overdue{background:rgba(240,98,146,.15);color:var(--red)}
+.prio-high{color:var(--red);font-size:11px;font-weight:600}
+.prio-medium{color:var(--yellow);font-size:11px;font-weight:600}
+.prio-low{color:var(--green);font-size:11px;font-weight:600}
+
+/* ETA BADGE */
+.eta-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600}
+.eta-ok{background:rgba(62,207,142,.12);color:var(--green);border:1px solid rgba(62,207,142,.25)}
+.eta-warn{background:rgba(255,209,102,.12);color:var(--yellow);border:1px solid rgba(255,209,102,.35);animation:etapulse 2s infinite}
+.eta-urgent{background:rgba(255,159,67,.12);color:var(--orange);border:1px solid rgba(255,159,67,.35);animation:etapulse 1.2s infinite}
+.eta-overdue{background:rgba(240,98,146,.15);color:var(--red);border:1px solid rgba(240,98,146,.4);animation:etapulse .8s infinite}
+@keyframes etapulse{0%,100%{opacity:1}50%{opacity:.6}}
+
+/* MODAL */
+.mo{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);z-index:100;display:none;align-items:center;justify-content:center}
+.mo.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:660px;max-height:88vh;overflow-y:auto;animation:slideUp .18s cubic-bezier(.4,0,.2,1);box-shadow:0 24px 80px rgba(0,0,0,.6)}
+.modal-lg{max-width:900px}
+.modal-sm{max-width:420px}
+@keyframes slideUp{from{transform:translateY(16px);opacity:0}to{transform:translateY(0);opacity:1}}
+.mh{padding:20px 22px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.mt2{font-family:'DM Serif Display',serif;font-size:19px}
+.mclose{background:none;border:none;cursor:pointer;color:var(--text3);padding:4px;border-radius:6px;transition:all var(--tr)}
+.mclose:hover{color:var(--text);background:var(--bg3)}
+.mclose svg{width:17px;height:17px;display:block}
+.mb{padding:22px}
+.mf{padding:14px 22px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px}
+
+/* FORM */
+.fg{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.ffull{grid-column:1/-1}
+.fl{font-size:10px;color:var(--text3);font-weight:500;letter-spacing:.6px;text-transform:uppercase}
+.fi,.fsel,.fta{background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13px;padding:8px 11px;transition:border-color var(--tr);outline:none;width:100%}
+.fi:focus,.fsel:focus,.fta:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,106,247,.1)}
+.fta{resize:vertical;min-height:72px}
+.fsel option{background:var(--bg3)}
+.fi-eta{border-color:rgba(255,209,102,.4) !important;background:rgba(255,209,102,.05) !important}
+
+/* TABLES */
+.trow{display:grid;gap:10px;align-items:center;padding:11px 18px;border-bottom:1px solid var(--border);cursor:pointer;transition:background var(--tr)}
+.trow:hover{background:var(--bg3)}
+.trow:last-child{border-bottom:none}
+.thead{background:var(--bg3);border-bottom:1px solid var(--border)}
+.th{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+
+/* PROJECT ROWS */
+.proj-trow{grid-template-columns:1fr 120px 100px 100px 90px 110px}
+.task-trow{grid-template-columns:24px 1fr 120px 80px 90px 90px 60px}
+
+/* PROGRESS */
+.pbar{height:4px;background:var(--bg4);border-radius:2px;overflow:hidden;margin-top:4px}
+.pfill{height:100%;border-radius:2px;background:var(--accent);transition:width .4s}
+.pfill.g{background:var(--green)}
+.pfill.y{background:var(--yellow)}
+.pfill.r{background:var(--red)}
+
+/* PHASE CARD */
+.phase-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);margin-bottom:10px;overflow:hidden;transition:border-color var(--tr)}
+.phase-card:hover{border-color:var(--border2)}
+.phase-hdr{display:grid;grid-template-columns:1fr 110px 100px 100px 90px 90px;gap:10px;align-items:center;padding:13px 18px;cursor:pointer;transition:background var(--tr)}
+.phase-hdr:hover{background:rgba(255,255,255,.02)}
+.phase-body{border-top:1px solid var(--border);padding:14px 18px;display:none}
+.phase-card.open .phase-body{display:block}
+
+/* TASK ITEM */
+.task-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.task-item:last-child{border-bottom:none}
+.tchk{width:16px;height:16px;border:1.5px solid var(--border2);border-radius:4px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all var(--tr)}
+.tchk.done{background:var(--green);border-color:var(--green)}
+.tchk svg{display:none;width:10px;height:10px;color:#fff}
+.tchk.done svg{display:block}
+.ttitle{flex:1;font-size:13px}
+.ttitle.struck{text-decoration:line-through;color:var(--text3)}
+
+/* NOTES */
+.note-item{padding:13px 16px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);margin-bottom:8px;position:relative}
+.note-item.pinned{border-color:rgba(255,209,102,.3);background:rgba(255,209,102,.04)}
+.nts{font-size:10px;color:var(--text3);margin-bottom:5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.ntag{font-size:9px;letter-spacing:1px;text-transform:uppercase;padding:2px 6px;border-radius:4px;background:var(--bg4);color:var(--text3)}
+.ntag.pin{background:rgba(255,209,102,.12);color:var(--yellow)}
+.ncontent{font-size:13px;line-height:1.6;color:var(--text2);white-space:pre-wrap}
+
+/* INVOICE */
+.inv-trow{grid-template-columns:130px 1fr 105px 100px 100px 95px}
+
+/* BILLING CARDS */
+.bcards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.bcard{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:16px}
+.blabel{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px}
+.bval{font-family:'DM Serif Display',serif;font-size:24px}
+.bsub{font-size:11px;color:var(--text3);margin-top:4px}
+
+/* DETAIL HEADER */
+.dh{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);padding:22px;margin-bottom:18px}
+.dtitle{font-family:'DM Serif Display',serif;font-size:26px;margin:6px 0}
+.dmeta{display:flex;gap:16px;flex-wrap:wrap;margin-top:10px}
+.dmi{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
+.dmi svg{width:12px;height:12px;color:var(--text3)}
+
+/* TABS */
+.tabs{display:flex;border-bottom:1px solid var(--border);margin-bottom:18px}
+.tab{background:none;border:none;cursor:pointer;color:var(--text3);font-family:'DM Sans',sans-serif;font-size:13px;font-weight:500;padding:9px 16px;border-bottom:2px solid transparent;margin-bottom:-1px;transition:all var(--tr)}
+.tab:hover{color:var(--text2)}
+.tab.active{color:var(--accent3);border-bottom-color:var(--accent)}
+.tpanel{display:none}
+.tpanel.active{display:block}
+
+/* FILTER BAR */
+.fbar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.srch{position:relative}
+.srch svg{position:absolute;left:9px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--text3);pointer-events:none}
+.srch .fi{padding-left:28px}
+
+/* TIMELINE */
+.timeline{position:relative;padding-left:18px}
+.timeline::before{content:'';position:absolute;left:5px;top:6px;bottom:0;width:1px;background:var(--border)}
+.tlitem{position:relative;padding:0 0 14px 16px}
+.tlitem::before{content:'';position:absolute;left:-13px;top:5px;width:7px;height:7px;border-radius:50%;border:2px solid var(--accent);background:var(--bg)}
+.tltime{font-size:10px;color:var(--text3);margin-bottom:2px}
+.tltext{font-size:12px;color:var(--text2)}
+
+/* EMPTY */
+.empty{text-align:center;padding:40px 20px;color:var(--text3)}
+.empty svg{width:36px;height:36px;margin-bottom:10px;opacity:.25}
+.empty p{font-size:13px;margin-bottom:14px}
+
+/* TOAST */
+.toast-wrap{position:fixed;bottom:22px;right:22px;z-index:200;display:flex;flex-direction:column;gap:7px}
+.toast{background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius2);padding:11px 15px;font-size:13px;display:flex;align-items:center;gap:9px;box-shadow:var(--shadow);animation:tIn .2s ease;min-width:240px;max-width:340px}
+.toast.ok{border-left:3px solid var(--green)}
+.toast.err{border-left:3px solid var(--red)}
+.toast.info{border-left:3px solid var(--accent)}
+.toast.warn{border-left:3px solid var(--yellow)}
+@keyframes tIn{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+.toast-icon{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;flex-shrink:0}
+.toast.ok .toast-icon{background:rgba(62,207,142,.15);color:var(--green)}
+.toast.err .toast-icon{background:rgba(240,98,146,.15);color:var(--red)}
+.toast.warn .toast-icon{background:rgba(255,209,102,.15);color:var(--yellow)}
+.toast.info .toast-icon{background:rgba(124,106,247,.15);color:var(--accent3)}
+
+/* ALERT PANEL */
+.alert-panel{position:fixed;top:0;right:0;bottom:0;width:340px;background:var(--bg2);border-left:1px solid var(--border);z-index:90;transform:translateX(100%);transition:transform .25s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column}
+.alert-panel.open{transform:translateX(0)}
+.ap-head{padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.ap-title{font-family:'DM Serif Display',serif;font-size:17px}
+.ap-body{flex:1;overflow-y:auto;padding:14px}
+.alert-item{padding:12px 14px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);margin-bottom:8px;cursor:pointer;transition:border-color var(--tr)}
+.alert-item:hover{border-color:var(--border2)}
+.alert-item.a-warn{border-left:3px solid var(--yellow)}
+.alert-item.a-urgent{border-left:3px solid var(--orange)}
+.alert-item.a-overdue{border-left:3px solid var(--red)}
+.ai-proj{font-size:12px;color:var(--text3);margin-bottom:3px}
+.ai-name{font-size:13px;font-weight:500;margin-bottom:5px}
+.ai-days{font-size:12px}
+
+/* BELL */
+.bell-btn{position:relative;cursor:pointer}
+.bell-count{position:absolute;top:-4px;right:-4px;background:var(--red);color:#fff;font-size:9px;font-weight:700;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid var(--bg2)}
+
+/* DOCS */
+.doc-item{display:flex;align-items:center;gap:10px;padding:9px 13px;background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius2);margin-bottom:7px;transition:border-color var(--tr)}
+.doc-item:hover{border-color:var(--border2)}
+.doc-ico{width:30px;height:30px;border-radius:7px;background:var(--bg4);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.doc-ico svg{width:15px;height:15px;color:var(--accent3)}
+
+/* SECTION HDR */
+.shdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.stitle{font-size:13px;font-weight:600}
+
+/* CHIP */
+.chip{display:inline-flex;align-items:center;background:var(--bg4);border:1px solid var(--border);border-radius:20px;padding:2px 7px;font-size:11px;color:var(--text2);margin:2px}
+
+/* CONFIRM */
+.confirm-sm{max-width:380px}
+
+/* ETA CONFIG */
+.eta-cfg{background:rgba(255,209,102,.05);border:1px solid rgba(255,209,102,.2);border-radius:var(--radius2);padding:14px;margin-top:10px}
+.eta-cfg-title{font-size:11px;color:var(--yellow);font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+/* SAVE EXCEL BUTTON */
+.save-excel-btn{display:flex;align-items:center;gap:8px;width:100%;padding:10px 12px;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius2);color:#fff;font-family:'DM Sans',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all var(--tr);margin-bottom:8px;box-shadow:0 2px 12px rgba(124,106,247,.3)}
+.save-excel-btn:hover{transform:translateY(-1px);box-shadow:0 4px 18px rgba(124,106,247,.45)}
+.save-excel-btn:active{transform:translateY(0)}
+.save-excel-btn.saving{background:linear-gradient(135deg,var(--yellow),#e6a800);box-shadow:0 2px 12px rgba(255,209,102,.3);animation:savepulse .8s infinite}
+.save-excel-btn.saved-ok{background:linear-gradient(135deg,var(--green),#2aa870);box-shadow:0 2px 12px rgba(62,207,142,.3)}
+.save-excel-btn svg{width:15px;height:15px;flex-shrink:0}
+@keyframes savepulse{0%,100%{opacity:1}50%{opacity:.75}}
+.sidebar-foot{padding:12px 10px;border-top:1px solid var(--border)}
+
+/* RESPONSIVE */
+@media(max-width:1100px){.stats-grid{grid-template-columns:repeat(2,1fr)}}
+
+/* AUTH SCREEN */
+#auth-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:1000}
+.auth-box{width:100%;max-width:360px;padding:36px 32px;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow)}
+.auth-logo{font-family:'DM Serif Display',serif;font-size:24px;display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.auth-sub{font-size:12px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-bottom:26px}
+.auth-tabs{display:flex;gap:4px;background:var(--bg3);border-radius:var(--radius2);padding:3px;margin-bottom:20px}
+.auth-tab{flex:1;text-align:center;padding:7px;border:none;background:none;color:var(--text2);font-family:'DM Sans',sans-serif;font-size:12.5px;font-weight:500;border-radius:6px;cursor:pointer;transition:all var(--tr)}
+.auth-tab.active{background:var(--accent);color:#fff}
+.auth-field{margin-bottom:14px}
+.auth-field label{display:block;font-size:11.5px;color:var(--text2);margin-bottom:5px}
+.auth-field input{width:100%;padding:9px 11px;background:var(--bg3);border:1px solid var(--border2);border-radius:var(--radius2);color:var(--text);font-family:'DM Sans',sans-serif;font-size:13.5px;outline:none}
+.auth-field input:focus{border-color:var(--accent)}
+.auth-btn{width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius2);font-family:'DM Sans',sans-serif;font-size:13.5px;font-weight:500;cursor:pointer;margin-top:6px;transition:all var(--tr)}
+.auth-btn:hover{background:var(--accent2)}
+.auth-btn:disabled{opacity:.5;cursor:not-allowed}
+.auth-msg{font-size:12px;padding:9px 11px;border-radius:var(--radius2);margin-bottom:14px;display:none}
+.auth-msg.err{display:block;background:rgba(240,98,146,.1);color:var(--red);border:1px solid rgba(240,98,146,.25)}
+.auth-msg.ok{display:block;background:rgba(62,207,142,.1);color:var(--green);border:1px solid rgba(62,207,142,.25)}
+.user-chip{display:flex;align-items:center;gap:8px;padding:8px;background:var(--bg3);border-radius:var(--radius2);margin-bottom:8px;font-size:12px}
+.user-chip .ua{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex-shrink:0}
+.user-chip .ue{color:var(--text2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.user-chip .ulogout{cursor:pointer;color:var(--text3);flex-shrink:0}
+.user-chip .ulogout:hover{color:var(--red)}
+.cloud-dot{width:7px;height:7px;border-radius:50%;background:var(--green);flex-shrink:0}
+.cloud-dot.syncing{background:var(--yellow);animation:pulse 1s infinite}
+.cloud-dot.err{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+</style>
+</head>
+<body>
+
+<div id="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo"><span class="logo-dot"></span>ProjectFlow</div>
+    <div class="auth-sub">Gestión de Proyectos · Equipo</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="tab-login" onclick="switchAuthTab('login')">Iniciar sesión</button>
+      <button class="auth-tab" id="tab-signup" onclick="switchAuthTab('signup')">Crear cuenta</button>
+    </div>
+    <div class="auth-msg" id="auth-msg"></div>
+    <div class="auth-field"><label>Email</label><input type="email" id="auth-email" placeholder="tu@empresa.com" autocomplete="username"></div>
+    <div class="auth-field"><label>Contraseña</label><input type="password" id="auth-password" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="auth-btn" id="auth-submit" onclick="handleAuthSubmit()">Iniciar sesión</button>
+  </div>
+</div>
+
+<div class="app" id="app-root" style="display:none">
+
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-mark"><span class="logo-dot"></span>ProjectFlow</div>
+    <div class="logo-sub">Gestión de Proyectos</div>
+  </div>
+  <nav class="nav">
+    <div class="nav-sep">Principal</div>
+    <button class="nb active" id="nav-dashboard" onclick="goTo('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="nb" id="nav-projects" onclick="goTo('projects')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>
+      Proyectos
+      <span class="ct" id="ct-projects">0</span>
+    </button>
+    <button class="nb" id="nav-tasks" onclick="goTo('tasks')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Tareas
+      <span class="ct" id="ct-tasks">0</span>
+    </button>
+    <button class="nb" id="nav-billing" onclick="goTo('billing')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>
+      Facturación
+    </button>
+    <button class="nb" id="nav-notes" onclick="goTo('notes')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Notas
+      <span class="ct" id="ct-notes">0</span>
+    </button>
+    <div class="nav-sep">Alertas ETA</div>
+    <button class="nb" id="nav-alerts" onclick="toggleAlertPanel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      Alertas ETA
+      <span class="ct alert" id="ct-alerts" style="display:none">0</span>
+    </button>
+    <div class="nav-sep">Datos</div>
+    <button class="nb" onclick="document.getElementById('file-inp').click()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importar Excel
+    </button>
+    <button class="nb" onclick="exportExcel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      Exportar Excel
+    </button>
+  </nav>
+  <div class="sidebar-foot">
+    <div class="user-chip">
+      <div class="ua" id="user-avatar">?</div>
+      <div class="ue" id="user-email">—</div>
+      <svg class="ulogout" onclick="logout()" title="Cerrar sesión" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+    </div>
+    <button class="save-excel-btn" id="save-excel-btn" onclick="saveToExcel()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+      <span id="save-excel-label">Guardar en Excel</span>
+    </button>
+    <div class="save-status">
+      <div class="save-dot saved" id="save-dot"></div>
+      <span id="save-txt">Sin cambios pendientes</span>
+    </div>
+    <div id="unsaved-bar" style="display:none;padding:4px 8px;background:rgba(255,209,102,.08);border:1px solid rgba(255,209,102,.2);border-radius:6px;margin-top:6px;font-size:11px;color:var(--yellow);display:flex;align-items:center;gap:6px">
+      <span>⚠</span><span id="unsaved-txt">0 cambios sin guardar en Excel</span>
+    </div>
+  </div>
+</aside>
+
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title" id="topbar-title">Dashboard</div>
+    <div id="topbar-actions" style="display:flex;gap:8px;align-items:center"></div>
+    <div class="bell-btn bicon" onclick="toggleAlertPanel()" title="Alertas ETA">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="bell-count" id="bell-count" style="display:none">0</span>
+    </div>
+  </div>
+
+  <div class="content" id="content">
+
+    <div class="view active" id="view-dashboard">
+      <div class="stats-grid">
+        <div class="scard c-purple"><div class="slabel">Proyectos activos</div><div class="sval" id="s-active">0</div><div class="ssub" id="s-active-s">de 0 total</div></div>
+        <div class="scard c-green"><div class="slabel">Tareas pendientes</div><div class="sval" id="s-tasks">0</div><div class="ssub" id="s-tasks-s">0 completadas</div></div>
+        <div class="scard c-yellow"><div class="slabel">Por cobrar</div><div class="sval" id="s-pending">0€</div><div class="ssub" id="s-pending-s">pendiente</div></div>
+        <div class="scard c-red"><div class="slabel">Alertas ETA activas</div><div class="sval" id="s-eta">0</div><div class="ssub">proyectos con aviso</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 320px;gap:18px">
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="card">
+            <div class="ch"><span class="ct2">Proyectos Recientes</span><button class="btn btn-secondary btn-xs" onclick="goTo('projects')">Ver todos</button></div>
+            <div id="dash-projects"></div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:18px">
+          <div class="card">
+            <div class="ch"><span class="ct2">Actividad Reciente</span></div>
+            <div class="cb"><div class="timeline" id="dash-activity"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="view" id="view-projects">
+      <div class="fbar">
+        <div class="srch" style="width:240px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="fi" id="pf-search" placeholder="Buscar proyecto..." oninput="renderProjects()"></div>
+        <select class="fsel" style="width:140px" id="pf-status" onchange="renderProjects()">
+          <option value="">Todos los estados</option><option value="active">Activos</option><option value="planning">Planificación</option><option value="paused">Pausados</option><option value="completed">Completados</option><option value="cancelled">Cancelados</option>
+        </select>
+        <button class="btn btn-primary" style="margin-left:auto" onclick="openProjModal()">+ Proyecto</button>
+      </div>
+      <div class="card">
+        <div class="trow thead proj-trow">
+          <div class="th">Proyecto</div><div class="th">Responsable</div><div class="th">Estado</div><div class="th">Progreso</div><div class="th">ETA</div><div class="th">Presupuesto</div>
+        </div>
+        <div id="projects-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-detail">
+      <div id="detail-content"></div>
+    </div>
+
+    <div class="view" id="view-tasks">
+      <div class="fbar">
+        <div class="srch" style="width:240px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="fi" id="tf-search" placeholder="Buscar tarea..." oninput="renderTasks()"></div>
+        <select class="fsel" style="width:180px" id="tf-project" onchange="renderTasks()"><option value="">Todos los proyectos</option></select>
+        <select class="fsel" style="width:140px" id="tf-status" onchange="renderTasks()">
+          <option value="">Todos los estados</option><option value="pending">Pendientes</option><option value="in_progress">En progreso</option><option value="completed">Completadas</option><option value="cancelled">Canceladas</option>
+        </select>
+      </div>
+      <div id="tasks-list" style="display:flex;flex-direction:column;gap:14px"></div>
+    </div>
+
+    <div class="view" id="view-billing">
+      <div class="bcards">
+        <div class="bcard"><div class="blabel">Total facturado</div><div class="bval" id="b-total">0€</div><div class="bsub" id="b-total-s">facturas</div></div>
+        <div class="bcard"><div class="blabel">Cobrado</div><div class="bval" style="color:var(--green)" id="b-paid">0€</div><div class="bsub" id="b-paid-s">pagadas</div></div>
+        <div class="bcard"><div class="blabel">Pendiente</div><div class="bval" style="color:var(--yellow)" id="b-pend">0€</div><div class="bsub" id="b-pend-s">por cobrar</div></div>
+      </div>
+      <div class="fbar">
+        <select class="fsel" style="width:200px" id="if-project" onchange="renderBilling()"><option value="">Todos los proyectos</option></select>
+        <select class="fsel" style="width:150px" id="if-status" onchange="renderBilling()">
+          <option value="">Todos los estados</option><option value="draft">Borrador</option><option value="sent">Enviada</option><option value="paid">Pagada</option><option value="overdue">Vencida</option>
+        </select>
+        <button class="btn btn-primary" style="margin-left:auto" onclick="openInvModal()">+ Factura</button>
+      </div>
+      <div class="card">
+        <div class="trow thead inv-trow">
+          <div class="th">Referencia</div><div class="th">Proyecto / Concepto</div><div class="th">Importe</div><div class="th">Emisión</div><div class="th">Vencimiento</div><div class="th">Estado</div>
+        </div>
+        <div id="billing-list"></div>
+      </div>
+    </div>
+
+    <div class="view" id="view-notes">
+      <div class="fbar">
+        <div class="srch" style="width:240px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg><input class="fi" id="nf-search" placeholder="Buscar nota..." oninput="renderNotes()"></div>
+        <select class="fsel" style="width:180px" id="nf-project" onchange="renderNotes()"><option value="">Todos los proyectos</option></select>
+        <button class="btn btn-primary" style="margin-left:auto" onclick="openNoteModal()">+ Nota</button>
+      </div>
+      <div id="notes-list" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px"></div>
+    </div>
+
+  </div>
+</main>
+
+<div class="alert-panel" id="alert-panel">
+  <div class="ap-head"><span class="ap-title">Alertas de Hitos (ETA)</span><button class="mclose" onclick="toggleAlertPanel()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+  <div class="ap-body" id="alert-panel-body"></div>
+</div>
+
+</div><div class="toast-wrap" id="toasts"></div>
+
+<input type="file" id="file-inp" style="display:none" accept=".xlsx,.xls">
+
+<div class="mo" id="mo-project">
+  <div class="modal">
+    <div class="mh"><span class="mt2" id="mpt">Nuevo Proyecto</span><button class="mclose" onclick="close_mo('mo-project')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb">
+      <input type="hidden" id="p-id">
+      <div class="fgrid">
+        <div class="fg"><label class="fl">Nombre del Proyecto *</label><input class="fi" id="p-name" placeholder="Ej: Rediseño Web E-commerce"></div>
+        <div class="fg"><label class="fl">Cliente *</label><input class="fi" id="p-client" placeholder="Ej: Acme Corp"></div>
+        <div class="fg"><label class="fl">Responsable / Manager</label><input class="fi" id="p-manager" placeholder="Nombre del responsable"></div>
+        <div class="fg fgrid">
+          <div class="fg"><label class="fl">Estado</label><select class="fsel" id="p-status"><option value="planning">Planificación</option><option value="active" selected>Activo</option><option value="paused">Pausado</option><option value="completed">Completado</option><option value="cancelled">Cancelado</option></select></div>
+          <div class="fg"><label class="fl">Prioridad</label><select class="fsel" id="p-priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+        </div>
+        <div class="fg"><label class="fl">Presupuesto Total</label><input type="number" class="fi" id="p-budget" placeholder="0"></div>
+        <div class="fg"><label class="fl">Moneda</label><select class="fsel" id="p-currency"><option value="EUR">EUR (€)</option><option value="USD">USD ($)</option><option value="GBP">GBP (£)</option></select></div>
+        <div class="fg"><label class="fl">Fecha de Inicio</label><input type="date" class="fi" id="p-start"></div>
+        <div class="fg"><label class="fl">Fecha de Fin Prevista</label><input type="date" class="fi" id="p-end"></div>
+        <div class="fg ffull"><label class="fl">Etiquetas (separadas por comas)</label><input class="fi" id="p-tags" placeholder="Ej: desarrollo, marketing, urgente"></div>
+        <div class="fg ffull"><label class="fl">Descripción</label><textarea class="fta" id="p-desc" placeholder="Breve descripción del proyecto..."></textarea></div>
+      </div>
+
+      <div class="eta-cfg">
+        <div class="eta-cfg-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          Configuración de Alerta Crítica (ETA / Plazo Logístico)
+        </div>
+        <div class="fgrid">
+          <div class="fg"><label class="fl">Nombre ETA</label><input class="fi fi-eta" id="p-eta-name" placeholder="Ej: Entrega cliente, Demo..."></div>
+          <div class="fg"><label class="fl">Fecha ETA *</label><input type="date" class="fi fi-eta" id="p-eta-date"></div>
+          <div class="fg"><label class="fl">Avisar con X días de antelación</label><input type="number" class="fi fi-eta" id="p-eta-warn" value="7" min="1" max="90" placeholder="7"></div>
+          <div class="fg"><label class="fl">Nivel de urgencia (días restantes)</label><input type="number" class="fi fi-eta" id="p-eta-urgent" value="3" min="1" max="30" placeholder="3"></div>
+          <div class="fg ffull"><label class="fl">Notas adicionales de la alerta</label><input class="fi fi-eta" id="p-eta-notes" placeholder="Ej: Penalización si se retrasa..."></div>
+          
+          <div class="fg ffull" style="flex-direction:row;align-items:center;gap:8px;padding-top:6px;margin-bottom:0">
+            <input type="checkbox" id="p-eta-disabled" style="width:16px;height:16px;cursor:pointer">
+            <label for="p-eta-disabled" style="font-size:12px;color:var(--text2);cursor:pointer;font-weight:500">🔕 Desactivar de forma independiente la alarma de este hito</label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-project')">Cancelar</button><button class="btn btn-primary" onclick="saveProject()">💾 Guardar</button></div>
+  </div>
+</div>
+
+<div class="mo" id="mo-phase">
+  <div class="modal modal-sm">
+    <div class="mh"><span class="mt2" id="mph">Nueva Fase</span><button class="mclose" onclick="close_mo('mo-phase')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb">
+      <input type="hidden" id="ph-id"><input type="hidden" id="ph-pid">
+      <div class="fg"><label class="fl">Nombre de la Fase *</label><input class="fi" id="ph-name" placeholder="Ej: Fase 1: Análisis e Investigación"></div>
+      <div class="fg"><label class="fl">Orden de Visualización</label><input type="number" class="fi" id="ph-sort" value="1" min="1"></div>
+    </div>
+    <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-phase')">Cancelar</button><button class="btn btn-primary" onclick="savePhase()">💾 Guardar</button></div>
+  </div>
+</div>
+
+<div class="mo" id="mo-task">
+  <div class="modal">
+    <div class="mh"><span class="mt2" id="mtt">Nueva Tarea</span><button class="mclose" onclick="close_mo('mo-task')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb">
+      <input type="hidden" id="ta-id"><input type="hidden" id="ta-pid"><input type="hidden" id="ta-phid">
+      <div class="fg"><label class="fl">Título de la Tarea *</label><input class="fi" id="ta-title" placeholder="Ej: Diseñar mockup de la home"></div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">Estado</label><select class="fsel" id="ta-status"><option value="pending">Pendiente</option><option value="in_progress">En progreso</option><option value="completed">Completada</option><option value="cancelled">Cancelada</option></select></div>
+        <div class="fg"><label class="fl">Prioridad</label><select class="fsel" id="ta-priority"><option value="low">Baja</option><option value="medium" selected>Media</option><option value="high">Alta</option></select></div>
+        <div class="fg"><label class="fl">Asignado a</label><input class="fi" id="ta-assigned" placeholder="Nombre del desarrollador"></div>
+        <div class="fg"><label class="fl">Horas Estimadas</label><input type="number" class="fi" id="ta-hours" placeholder="0" step="0.5"></div>
+        <div class="fg"><label class="fl">Fecha de Inicio</label><input type="date" class="fi" id="ta-start"></div>
+        <div class="fg"><label class="fl">Fecha Límite</label><input type="date" class="fi" id="ta-due"></div>
+      </div>
+      <div class="fg"><label class="fl">Descripción</label><textarea class="fta" id="ta-desc" placeholder="Detalles de la tarea..."></textarea></div>
+    </div>
+    <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-task')">Cancelar</button><button class="btn btn-primary" onclick="saveTask()">💾 Guardar</button></div>
+  </div>
+</div>
+
+<div class="mo" id="mo-invoice">
+  <div class="modal">
+    <div class="mh"><span class="mt2" id="mit">Nueva Factura</span><button class="mclose" onclick="close_mo('mo-invoice')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb">
+      <input type="hidden" id="iv-id">
+      <div class="fgrid">
+        <div class="fg"><label class="fl">Proyecto Asociado *</label><select class="fsel" id="iv-pid"><option value="">Seleccionar proyecto...</option></select></div>
+        <div class="fg"><label class="fl">Código / Referencia Factura *</label><input class="fi" id="iv-ref" placeholder="Ej: INV-2024-001"></div>
+        <div class="fg ffull"><label class="fl">Concepto / Descripción general *</label><input class="fi" id="iv-concept" placeholder="Ej: Primer hito de desarrollo web 50%"></div>
+        <div class="fg"><label class="fl">Importe Total (Sin IVA/Tax) *</label><input type="number" class="fi" id="iv-amount" placeholder="0" step="0.01"></div>
+        <div class="fg"><label class="fl">Moneda</label><select class="fsel" id="iv-currency"><option value="EUR">EUR (€)</option><option value="USD">USD ($)</option><option value="GBP">GBP (£)</option></select></div>
+        <div class="fg"><label class="fl">Fecha de Emisión *</label><input type="date" class="fi" id="iv-issue"></div>
+        <div class="fg"><label class="fl">Fecha de Vencimiento</label><input type="date" class="fi" id="iv-due"></div>
+        <div class="fg"><label class="fl">Estado</label><select class="fsel" id="iv-status"><option value="draft">Borrador</option><option value="sent">Enviada</option><option value="paid">Pagada</option><option value="overdue">Vencida</option></select></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-invoice')">Cancelar</button><button class="btn btn-primary" onclick="saveInvoice()">💾 Guardar</button></div>
+  </div>
+</div>
+
+<div class="mo" id="mo-note">
+  <div class="modal modal-sm">
+    <div class="mh"><span class="mt2" id="mnt">Nueva Nota</span><button class="mclose" onclick="close_mo('mo-note')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb">
+      <input type="hidden" id="no-id"><input type="hidden" id="no-pid">
+      <div class="fg"><label class="fl">Proyecto Asociado (Opcional)</label><select class="fsel" id="no-select-pid"><option value="">Nota global / Sin proyecto</option></select></div>
+      <div class="fg"><label class="fl">Categoría / Etiqueta</label><input class="fi" id="no-tag" placeholder="Ej: Credenciales, Reunión, Idea"></div>
+      <div class="fg"><label class="fl">Contenido de la nota *</label><textarea class="fta" id="no-content" style="min-height:140px" placeholder="Escribe aquí anotaciones, accesos rápidos..."></textarea></div>
+      <div class="fg" style="flex-direction:row;align-items:center;gap:6px;margin-bottom:0;padding-top:4px">
+        <input type="checkbox" id="no-pinned" style="width:14px;height:14px;cursor:pointer"><label for="no-pinned" style="font-size:12px;color:var(--text2);cursor:pointer">Fijar esta nota en la parte superior</label>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-note')">Cancelar</button><button class="btn btn-primary" onclick="saveNote()">💾 Guardar</button></div>
+  </div>
+</div>
+
+<div class="mo" id="mo-doc">
+  <div class="modal modal-sm">
+    <div class="mh"><span class="mt2" id="mdct">Añadir Documento</span><button class="mclose" onclick="close_mo('mo-doc')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb">
+      <input type="hidden" id="dc-id"><input type="hidden" id="dc-pid">
+      <div class="fg"><label class="fl">Nombre del Documento *</label><input class="fi" id="dc-name" placeholder="Ej: Contrato de servicios firmado"></div>
+      <div class="fgrid">
+        <div class="fg"><label class="fl">Tipo</label>
+          <select class="fsel" id="dc-type">
+            <option value="contract">Contrato</option><option value="brief">Brief</option>
+            <option value="proposal">Propuesta</option><option value="invoice">Factura</option>
+            <option value="report">Informe</option><option value="design">Diseño</option><option value="other">Otro</option>
+          </select></div>
+        <div class="fg"><label class="fl">Versión</label><input class="fi" id="dc-version" placeholder="v1.0"></div>
+        <div class="fg ffull"><label class="fl">URL / Enlace</label><input class="fi" id="dc-url" placeholder="https://..."></div>
+        <div class="fg ffull"><label class="fl">Descripción</label><textarea class="fta" id="dc-desc" placeholder="Descripción..."></textarea></div>
+        <div class="fg"><label class="fl">Estado</label>
+          <select class="fsel" id="dc-status">
+            <option value="draft">Borrador</option><option value="review">Revisión</option>
+            <option value="approved">Aprobado</option><option value="archived">Archivado</option>
+          </select></div>
+      </div>
+    </div>
+    <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-doc')">Cancelar</button><button class="btn btn-primary" onclick="saveDoc()">💾 Guardar</button></div>
+  </div>
+</div>
+
+<div class="mo" id="mo-confirm">
+  <div class="modal confirm-sm">
+    <div class="mh"><span class="mt2">Confirmar Acción</span><button class="mclose" onclick="close_mo('mo-confirm')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="mb"><p id="confirm-msg" style="font-size:14px;color:var(--text2)"></p></div>
+    <div class="mf"><button class="btn btn-secondary" onclick="close_mo('mo-confirm')">Cancelar</button><button class="btn btn-danger" id="confirm-ok">Confirmar</button></div>
+  </div>
+</div>
+
+
+<script>
+// ── SUPABASE CONFIG ──────────────────────────────────────────────────
+// 1. Crea un proyecto en https://supabase.com
+// 2. Ejecuta schema.sql (incluido junto a este archivo) en el SQL Editor de Supabase
+// 3. Pega aquí tu Project URL y anon public key (Settings → API)
+const SUPABASE_URL = 'https://TU-PROYECTO.supabase.co';
+const SUPABASE_ANON_KEY = 'TU-ANON-PUBLIC-KEY';
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true }
+});
+
+// ── BASE CONFIG AND STATE ─────────────────────────────────────────────
+const EXCEL_FILENAME = 'ProjectFlow_Database.xlsx';
+let currentUser = null;
+let authMode = 'login';
+let realtimeChannel = null;
+let refreshDebounce = null;
+
+let db = {
+  projects: [],
+  phases: [],
+  tasks: [],
+  invoices: [],
+  documents: []
+};
+let activity = [];
+let currentView = 'dashboard';
+let currentProjectId = null;
+let currentTab = 'phases';
+let saveTimer = null;
+let confirmCb = null;
+let alertPanelOpen = false;
+
+// ── UTILS ─────────────────────────────────────────────────────────────
+const uid = () => 'id_' + Math.random().toString(36).substring(2, 11);
+const now = () => new Date().toISOString();
+const today = () => new Date().toISOString().split('T')[0];
+const fmtDate = d => d ? d.split('T')[0] : '';
+const fmtDateL = d => {
+  if(!d) return '—';
+  return new Date(d).toLocaleDateString('es-ES', {day:'2-digit', month:'short', year:'numeric'});
+};
+const fmtCur = (n, c='EUR') => {
+  const s={EUR:'€', USD:'$', GBP:'£'};
+  return (n||0).toLocaleString('es-ES', {minimumFractionDigits:2, maximumFractionDigits:2}) + (s[c]||c);
+};
+const daysUntil = d => {
+  if(!d) return null;
+  const diff = new Date(d) - new Date(today());
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+};
+
+function addAct(txt){
+  const time = now();
+  activity.unshift({time, text:txt});
+  if(activity.length>50) activity.pop();
+  sb.from('activity_log').insert({ id: uid(), text: txt, created_at: time }).then(({error}) => {
+    if(error) console.warn('activity_log insert error', error);
+  });
+}
+
+// ── BADGES RENDER ─────────────────────────────────────────────────────
+function badge(st) {
+  const m = {
+    planning:'Planificación', active:'Activo', paused:'Pausado', completed:'Completado', cancelled:'Cancelado',
+    pending:'Pendiente', in_progress:'En progreso',
+    draft:'Borrador', sent:'Enviada', paid:'Pagada', overdue:'Vencida'
+  };
+  return `<span class="badge b-${st}">${m[st]||st}</span>`;
+}
+
+function etaBadge(p) {
+  if (!p.eta_date) return '<span style="color:var(--text3);font-size:12px">—</span>';
+  
+  // SI ESTÁ MARCADAMENTE SILENCIADO O DESACTIVADO POR EL USUARIO
+  if (p.eta_disabled) {
+    return `<span class="eta-badge" style="background:rgba(148,148,184,.12);color:var(--text2);border:1px solid rgba(148,148,184,.25)">🔕 Silenciada</span>`;
+  }
+  
+  const days = daysUntil(p.eta_date);
+  const warn = parseInt(p.eta_warn) || 7;
+  const urgent = parseInt(p.eta_urgent) || 3;
+  const name = p.eta_name || 'ETA';
+
+  if (days === null) return '—';
+  if (days < 0) return `<span class="eta-badge eta-overdue" title="${name}: ${fmtDateL(p.eta_date)}">⚠️ Vencido ${Math.abs(days)}d</span>`;
+  if (days <= urgent) return `<span class="eta-badge eta-urgent" title="${name}: ${fmtDateL(p.eta_date)}">🚨 ${days}d restantes</span>`;
+  if (days <= warn) return `<span class="eta-badge eta-warn" title="${name}: ${fmtDateL(p.eta_date)}">⚠ ${days}d restantes</span>`;
+  return `<span class="eta-badge eta-ok" title="${name}: ${fmtDateL(p.eta_date)}">📅 ${days}d</span>`;
+}
+
+// ── CLOUD SYNC STATUS + UNSAVED EXCEL COUNTER ─────────────────────────
+// La persistencia real ahora ocurre en Supabase dentro de cada función CRUD.
+// Esta función solo refleja el estado de sincronización en la UI y lleva
+// la cuenta de cambios pendientes de exportar a Excel (copia de respaldo manual).
+let unsavedChanges = 0;
+
+function scheduleSave() {
+  const dot = document.getElementById('save-dot');
+  const txt = document.getElementById('save-txt');
+  dot.className = 'save-dot saved';
+  txt.textContent = 'Sincronizado con Supabase · ' + new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+  unsavedChanges++;
+  updateUnsavedBar();
+}
+
+function setSyncStatus(state){
+  const dot = document.getElementById('save-dot');
+  const txt = document.getElementById('save-txt');
+  if(state==='syncing'){ dot.className='save-dot saving'; txt.textContent='Sincronizando...'; }
+  else if(state==='error'){ dot.className='save-dot'; txt.textContent='Error de conexión con Supabase'; }
+  else { dot.className='save-dot saved'; txt.textContent='Sincronizado con Supabase'; }
+}
+
+function updateUnsavedBar() {
+  const bar = document.getElementById('unsaved-bar');
+  const txt = document.getElementById('unsaved-txt');
+  const btn = document.getElementById('save-excel-btn');
+  if (unsavedChanges > 0) {
+    bar.style.display = 'flex';
+    txt.textContent = `${unsavedChanges} cambio${unsavedChanges>1?'s':''} sin guardar en Excel`;
+    btn.style.animation = unsavedChanges >= 5 ? 'savepulse 1.5s infinite' : '';
+  } else {
+    bar.style.display = 'none';
+    btn.style.animation = '';
+  }
+}
+
+// ── LOAD DATA FROM SUPABASE ────────────────────────────────────────────
+async function loadFromSupabase() {
+  setSyncStatus('syncing');
+  try {
+    const [pr, ph, ta, inv, doc, no, act] = await Promise.all([
+      sb.from('projects').select('*').order('created_at', {ascending:false}),
+      sb.from('phases').select('*'),
+      sb.from('tasks').select('*'),
+      sb.from('invoices').select('*'),
+      sb.from('documents').select('*'),
+      sb.from('notes').select('*').order('created_at', {ascending:false}),
+      sb.from('activity_log').select('*').order('created_at', {ascending:false}).limit(30)
+    ]);
+    for (const r of [pr, ph, ta, inv, doc, no, act]) { if (r.error) throw r.error; }
+    db.projects = pr.data || [];
+    db.phases = ph.data || [];
+    db.tasks = ta.data || [];
+    db.invoices = inv.data || [];
+    db.documents = doc.data || [];
+    db.notes = no.data || [];
+    activity = (act.data || []).map(a => ({ time: a.created_at, text: a.text }));
+    setSyncStatus('ok');
+  } catch (e) {
+    console.error('Load error', e);
+    setSyncStatus('error');
+    toast('Error al cargar datos desde Supabase: ' + e.message, 'err');
+  }
+}
+
+// ── REALTIME COLLABORATION ─────────────────────────────────────────────
+// Cuando cualquier miembro del equipo crea/edita/borra algo, el resto
+// recibe el cambio en tiempo real y la interfaz se refresca automáticamente.
+function subscribeRealtime() {
+  if (realtimeChannel) sb.removeChannel(realtimeChannel);
+  const tables = ['projects','phases','tasks','invoices','documents','notes','activity_log'];
+  realtimeChannel = sb.channel('projectflow-db-changes');
+  tables.forEach(t => {
+    realtimeChannel.on('postgres_changes', { event: '*', schema: 'public', table: t }, () => {
+      clearTimeout(refreshDebounce);
+      refreshDebounce = setTimeout(async () => {
+        await loadFromSupabase();
+        updateBadges(); updateDropdowns(); refreshAll();
+        if (currentView === 'detail' && currentProjectId) renderDetail(currentProjectId);
+      }, 500);
+    });
+  });
+  realtimeChannel.subscribe();
+}
+
+// ── AUTHENTICATION ──────────────────────────────────────────────────────
+function switchAuthTab(mode) {
+  authMode = mode;
+  document.getElementById('tab-login').classList.toggle('active', mode==='login');
+  document.getElementById('tab-signup').classList.toggle('active', mode==='signup');
+  document.getElementById('auth-submit').textContent = mode==='login' ? 'Iniciar sesión' : 'Crear cuenta';
+  document.getElementById('auth-msg').style.display = 'none';
+}
+
+function showAuthMsg(msg, type='err') {
+  const el = document.getElementById('auth-msg');
+  el.textContent = msg;
+  el.className = 'auth-msg ' + type;
+}
+
+async function handleAuthSubmit() {
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const btn = document.getElementById('auth-submit');
+  if (!email || !password) { showAuthMsg('Introduce email y contraseña'); return; }
+  if (password.length < 6) { showAuthMsg('La contraseña debe tener al menos 6 caracteres'); return; }
+  btn.disabled = true;
+  try {
+    if (authMode === 'login') {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      // onAuthStateChange se encarga de arrancar la app
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if (error) throw error;
+      if (data.session) {
+        // Confirmación de email desactivada: hay sesión inmediata, pero
+        // checkApprovalAndEnter() la cerrará si el status sigue 'pending'
+        // y mostrará el aviso de "pendiente de aprobación".
+      } else {
+        showAuthMsg('Cuenta creada. Confirma tu email y espera a que el administrador apruebe tu acceso.', 'ok');
+      }
+    }
+  } catch (e) {
+    showAuthMsg(e.message || 'Error de autenticación');
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function logout() {
+  confirm2('¿Cerrar sesión?', async () => {
+    if (realtimeChannel) sb.removeChannel(realtimeChannel);
+    await sb.auth.signOut();
+  });
+}
+
+function showApp(user) {
+  currentUser = user;
+  document.getElementById('auth-screen').style.display = 'none';
+  document.getElementById('app-root').style.display = 'flex';
+  document.getElementById('user-email').textContent = user.email;
+  document.getElementById('user-avatar').textContent = (user.email||'?')[0].toUpperCase();
+}
+
+function showAuthScreen() {
+  currentUser = null;
+  document.getElementById('auth-screen').style.display = 'flex';
+  document.getElementById('app-root').style.display = 'none';
+  document.getElementById('auth-email').value = '';
+  document.getElementById('auth-password').value = '';
+}
+
+let appInitialized = false;
+async function initApp() {
+  await loadFromSupabase();
+  updateBadges();
+  updateDropdowns();
+  renderDashboard();
+  goTo('dashboard');
+  if (!appInitialized) {
+    checkETAOnLoad();
+    startETAWatcher();
+    startSaveReminder();
+    subscribeRealtime();
+    appInitialized = true;
+  } else {
+    subscribeRealtime();
+  }
+}
+
+// ── APROBACIÓN DE CUENTAS POR EL ADMINISTRADOR ────────────────────────
+// Cada usuario nuevo (registrado desde la app o creado a mano en Supabase)
+// obtiene automáticamente una fila en "profiles" con status='pending'
+// (ver trigger en schema.sql). Hasta que un administrador cambie ese
+// status a 'approved' en Supabase (Table Editor → profiles), no puede
+// entrar a la app aunque sus credenciales sean correctas.
+let checkingApproval = false;
+async function checkApprovalAndEnter(user) {
+  checkingApproval = true;
+  try {
+    const { data: profile, error } = await sb.from('profiles').select('status').eq('id', user.id).single();
+    if (error || !profile) {
+      await sb.auth.signOut();
+      showAuthScreen();
+      showAuthMsg('No se pudo verificar el estado de tu cuenta. Inténtalo de nuevo en unos segundos.', 'err');
+      return;
+    }
+    if (profile.status === 'approved') {
+      showApp(user);
+      initApp();
+    } else if (profile.status === 'rejected') {
+      await sb.auth.signOut();
+      showAuthScreen();
+      showAuthMsg('Tu acceso ha sido rechazado por el administrador.', 'err');
+    } else {
+      await sb.auth.signOut();
+      showAuthScreen();
+      showAuthMsg('Tu cuenta está pendiente de aprobación por el administrador. Te avisaremos cuando puedas acceder.', 'ok');
+    }
+  } finally {
+    checkingApproval = false;
+  }
+}
+
+sb.auth.onAuthStateChange((event, session) => {
+  if (checkingApproval) return; // evita bucles al forzar el signOut de arriba
+  if (session && session.user) {
+    checkApprovalAndEnter(session.user);
+  } else {
+    showAuthScreen();
+  }
+});
+
+// ── ALERTS ETA ──────────────────────────────────────────────────────────
+function getAlerts() {
+  return db.projects.filter(p=>{
+    // IGNORAR PROYECTOS SI TIENEN LA ALERTA DESACTIVADA DE FORMA INDEPENDIENTE
+    if(p.eta_disabled || !p.eta_date || p.status==='completed' || p.status==='cancelled') return false;
+    const days = daysUntil(p.eta_date);
+    if(days===null) return false;
+    const warn = parseInt(p.eta_warn)||7;
+    return days <= warn;
+  }).map(p => {
+    const days = daysUntil(p.eta_date);
+    const urgent = parseInt(p.eta_urgent)||3;
+    let level = days<0?'overdue':days<=urgent?'urgent':'warn';
+    return { project:p, days, level };
+  }).sort((a,b)=>a.days-b.days);
+}
+
+function updateAlertBadges() {
+  const list = getAlerts();
+  const count = list.length;
+  const nA = document.getElementById('ct-alerts');
+  const bC = document.getElementById('bell-count');
+  if(count > 0) {
+    nA.style.display = 'inline-block'; nA.textContent = count;
+    bC.style.display = 'flex'; bC.textContent = count;
+    document.getElementById('s-eta').textContent = count;
+  } else {
+    nA.style.display = 'none';
+    bC.style.display = 'none';
+    document.getElementById('s-eta').textContent = '0';
+  }
+}
+
+function renderAlertPanel() {
+  const list = getAlerts();
+  const el = document.getElementById('alert-panel-body');
+  if(!list.length) {
+    el.innerHTML = '<div class="empty" style="padding-top:60px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><p>No hay alertas pendientes</p></div>';
+    return;
+  }
+  el.innerHTML = list.map(a => {
+    const p = a.project;
+    const lbl = a.level==='overdue'?'VENCIDO':a.level==='urgent'?'CRÍTICO':'AVISO';
+    const dayTxt = a.days<0?`Plazo vencido por ${Math.abs(a.days)} días`:`Vence en ${a.days} días (${fmtDateL(p.eta_date)})`;
+    return `<div class="alert-item a-${a.level}" onclick="showDetail('${p.project_id}');toggleAlertPanel()">
+      <div class="ai-proj">${p.client} · ${p.name}</div>
+      <div class="ai-name">📌 ${p.eta_name||'Hito ETA'} <span class="badge ${a.level==='overdue'?'b-cancelled':a.level==='urgent'?'b-planning':'b-paused'}" style="font-size:9px;padding:1px 5px">${lbl}</span></div>
+      <div class="ai-days" style="color:var(--text2)">${dayTxt}</div>
+      ${p.eta_notes?`<div style="font-size:11px;color:var(--text3);margin-top:4px;font-style:italic">"${p.eta_notes}"</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function toggleAlertPanel() {
+  alertPanelOpen = !alertPanelOpen;
+  document.getElementById('alert-panel').classList.toggle('open', alertPanelOpen);
+  if(alertPanelOpen) renderAlertPanel();
+}
+
+// ── NAVIGATION ──────────────────────────────────────────────────────────
+function goTo(v) {
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  document.querySelectorAll('.nb').forEach(e=>e.classList.remove('active'));
+  currentView = v;
+  const ve = document.getElementById('view-'+v);
+  if(ve) ve.classList.add('active');
+  const ne = document.getElementById('nav-'+v);
+  if(ne) ne.classList.add('active');
+  const titles={dashboard:'Dashboard',projects:'Proyectos',detail:'Proyecto',tasks:'Tareas',billing:'Facturación',notes:'Notas'};
+  document.getElementById('topbar-title').textContent = titles[v]||v;
+  document.getElementById('topbar-actions').innerHTML='';
+  if(v==='dashboard') renderDashboard();
+  else if(v==='projects') renderProjects();
+  else if(v==='tasks') renderTasks();
+  else if(v==='billing') renderBilling();
+  else if(v==='notes') renderNotes();
+}
+
+function showDetail(id) {
+  currentProjectId = id;
+  document.querySelectorAll('.view').forEach(e=>e.classList.remove('active'));
+  document.getElementById('view-detail').classList.add('active');
+  document.querySelectorAll('.nb').forEach(e=>e.classList.remove('active'));
+  document.getElementById('nav-projects').classList.add('active');
+  currentView = 'detail';
+  renderDetail(id);
+}
+
+// ── TOAST ─────────────────────────────────────────────────────────────
+function toast(msg,type='ok'){
+  const icons={ok:'✓',err:'✕',info:'ℹ',warn:'!'};
+  const el=document.createElement('div');
+  el.className=`toast ${type}`;
+  el.innerHTML=`<div class="toast-icon">${icons[type]||'•'}</div><span>${msg}</span>`;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(()=>{el.style.opacity='0';el.style.transform='translateX(20px)';setTimeout(()=>el.remove(),300)},3000);
+}
+
+// ── MODAL UTILS ───────────────────────────────────────────────────────
+function open_mo(id){document.getElementById(id).classList.add('open')}
+function close_mo(id){document.getElementById(id).classList.remove('open')}
+document.addEventListener('click',e=>{if(e.target.classList.contains('mo'))e.target.classList.remove('open')});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.mo.open').forEach(m=>m.classList.remove('open'));if(alertPanelOpen){alertPanelOpen=false;document.getElementById('alert-panel').classList.remove('open')}}});
+document.getElementById('confirm-ok').onclick=()=>{if(confirmCb)confirmCb();close_mo('mo-confirm');confirmCb=null};
+function confirm2(msg,cb){document.getElementById('confirm-msg').textContent=msg;confirmCb=cb;open_mo('mo-confirm')}
+
+// ── PROJECT CRUD ──────────────────────────────────────────────────────
+function openProjModal(id){
+  const p = id ? db.projects.find(x=>x.project_id===id) : null;
+  document.getElementById('mpt').textContent = p ? 'Editar Proyecto' : 'Nuevo Proyecto';
+  document.getElementById('p-id').value = p?.project_id||'';
+  document.getElementById('p-name').value = p?.name||'';
+  document.getElementById('p-client').value = p?.client||'';
+  document.getElementById('p-manager').value = p?.manager||'';
+  document.getElementById('p-desc').value = p?.description||'';
+  document.getElementById('p-status').value = p?.status||'active';
+  document.getElementById('p-priority').value = p?.priority||'medium';
+  document.getElementById('p-budget').value = p?.total_budget||'';
+  document.getElementById('p-currency').value = p?.currency||'EUR';
+  document.getElementById('p-start').value = fmtDate(p?.start_date);
+  document.getElementById('p-end').value = fmtDate(p?.end_date);
+  document.getElementById('p-tags').value = p?.tags||'';
+  
+  // ETA ASIGNACIÓN
+  document.getElementById('p-eta-name').value = p?.eta_name||'';
+  document.getElementById('p-eta-date').value = fmtDate(p?.eta_date);
+  document.getElementById('p-eta-warn').value = p?.eta_warn||7;
+  document.getElementById('p-eta-urgent').value = p?.eta_urgent||3;
+  document.getElementById('p-eta-notes').value = p?.eta_notes||'';
+  
+  // CARGAR ESTADO DEL CHECKBOX DESACTIVAR ALERTA
+  document.getElementById('p-eta-disabled').checked = p?.eta_disabled ? true : false;
+
+  open_mo('mo-project');
+}
+
+async function saveProject(){
+  const name=document.getElementById('p-name').value.trim();
+  const client=document.getElementById('p-client').value.trim();
+  if(!name||!client){toast('Nombre y Cliente son obligatorios','err');return}
+  const id=document.getElementById('p-id').value;
+  
+  const data = {
+    name,
+    client,
+    manager: document.getElementById('p-manager').value.trim(),
+    description: document.getElementById('p-desc').value.trim(),
+    status: document.getElementById('p-status').value,
+    priority: document.getElementById('p-priority').value,
+    total_budget: parseFloat(document.getElementById('p-budget').value)||0,
+    currency: document.getElementById('p-currency').value,
+    start_date: document.getElementById('p-start').value||null,
+    end_date: document.getElementById('p-end').value||null,
+    tags: document.getElementById('p-tags').value.trim(),
+    updated_at: now(),
+    
+    eta_name: document.getElementById('p-eta-name').value.trim(),
+    eta_date: document.getElementById('p-eta-date').value||null,
+    eta_warn: parseInt(document.getElementById('p-eta-warn').value)||7,
+    eta_urgent: parseInt(document.getElementById('p-eta-urgent').value)||3,
+    eta_notes: document.getElementById('p-eta-notes').value.trim(),
+    
+    // GUARDAR VALOR DEL CHECKBOX DESACTIVAR ALERTA
+    eta_disabled: document.getElementById('p-eta-disabled').checked
+  };
+
+  try{
+    if(id){
+      const {data:updated, error} = await sb.from('projects').update(data).eq('project_id', id).select().single();
+      if(error) throw error;
+      const i=db.projects.findIndex(x=>x.project_id===id);
+      if(i>-1) db.projects[i]=updated; else db.projects.push(updated);
+      toast('Proyecto actualizado');
+    } else {
+      const newRow = {project_id:uid(), ...data, created_at:now()};
+      const {data:inserted, error} = await sb.from('projects').insert(newRow).select().single();
+      if(error) throw error;
+      db.projects.push(inserted);
+      addAct('Nuevo proyecto: '+name);
+      toast('Proyecto creado');
+    }
+    close_mo('mo-project');scheduleSave();refreshAll();
+    if(currentView==='detail') renderDetail(id||currentProjectId);
+  } catch(e) {
+    console.error(e); toast('Error al guardar el proyecto: '+e.message,'err');
+  }
+}
+
+function deleteProject(id){
+  const p=db.projects.find(x=>x.project_id===id);
+  confirm2(`¿Eliminar de forma permanente el proyecto "${p?.name}" y todos sus datos relacionados (fases, tareas, facturas)?`, async ()=>{
+    try{
+      const {error} = await sb.from('projects').delete().eq('project_id', id);
+      if(error) throw error;
+      db.projects=db.projects.filter(x=>x.project_id!==id);
+      db.phases=db.phases.filter(x=>x.project_id!==id);
+      db.tasks=db.tasks.filter(x=>x.project_id!==id);
+      db.invoices=db.invoices.filter(x=>x.project_id!==id);
+      db.documents=db.documents.filter(x=>x.project_id!==id);
+      toast('Proyecto eliminado completamente','info');scheduleSave();refreshAll();goTo('projects');
+    } catch(e) {
+      console.error(e); toast('Error al eliminar el proyecto: '+e.message,'err');
+    }
+  });
+}
+
+// ── PHASE CRUD ────────────────────────────────────────────────────────
+function openPhaseModal(pid,id){
+  const ph = id ? db.phases.find(x=>x.phase_id===id) : null;
+  document.getElementById('mph').textContent = ph ? 'Editar Fase' : 'Nueva Fase';
+  document.getElementById('ph-id').value = ph?.phase_id||'';
+  document.getElementById('ph-pid').value = pid||ph?.project_id||'';
+  document.getElementById('ph-name').value = ph?.name||'';
+  document.getElementById('ph-sort').value = ph?.sort_order||(db.phases.filter(x=>x.project_id===(pid||ph?.project_id)).length+1);
+  open_mo('mo-phase');
+}
+
+async function savePhase(){
+  const name=document.getElementById('ph-name').value.trim();
+  if(!name){toast('El nombre de la fase es obligatorio','err');return}
+  const pid=document.getElementById('ph-pid').value;
+  const id=document.getElementById('ph-id').value;
+  const data={project_id:pid,name,sort_order:parseInt(document.getElementById('ph-sort').value)||1};
+  try{
+    if(id){
+      const {data:updated, error} = await sb.from('phases').update(data).eq('phase_id', id).select().single();
+      if(error) throw error;
+      const i=db.phases.findIndex(x=>x.phase_id===id);db.phases[i]=updated;toast('Fase actualizada');
+    } else {
+      const {data:inserted, error} = await sb.from('phases').insert({phase_id:uid(),...data}).select().single();
+      if(error) throw error;
+      db.phases.push(inserted);toast('Fase creada');
+    }
+    close_mo('mo-phase');scheduleSave();refreshAll();
+    if(currentView==='detail') renderDetail(pid||currentProjectId);
+  } catch(e) {
+    console.error(e); toast('Error al guardar la fase: '+e.message,'err');
+  }
+}
+
+function deletePhase(id){
+  const ph=db.phases.find(x=>x.phase_id===id);
+  confirm2(`¿Eliminar la fase "${ph?.name}"? Las tareas de esta fase quedarán huérfanas.`,async ()=>{
+    const pid=ph?.project_id;
+    try{
+      const {error} = await sb.from('phases').delete().eq('phase_id', id);
+      if(error) throw error;
+      db.phases=db.phases.filter(x=>x.phase_id!==id);
+      toast('Fase eliminada','info');scheduleSave();refreshAll();
+      if(currentView==='detail') renderDetail(pid||currentProjectId);
+    } catch(e) {
+      console.error(e); toast('Error al eliminar la fase: '+e.message,'err');
+    }
+  });
+}
+
+// ── TASK CRUD ─────────────────────────────────────────────────────────
+function openTaskModal(pid,phid,id){
+  const t = id ? db.tasks.find(x=>x.task_id===id) : null;
+  document.getElementById('mtt').textContent = t ? 'Editar Tarea' : 'Nueva Tarea';
+  document.getElementById('ta-id').value = t?.task_id||'';
+  document.getElementById('ta-pid').value = pid||t?.project_id||'';
+  document.getElementById('ta-phid').value = phid||t?.phase_id||'';
+  document.getElementById('ta-title').value = t?.title||'';
+  document.getElementById('ta-desc').value = t?.description||'';
+  document.getElementById('ta-status').value = t?.status||'pending';
+  document.getElementById('ta-priority').value = t?.priority||'medium';
+  document.getElementById('ta-assigned').value = t?.assigned_to||'';
+  document.getElementById('ta-hours').value = t?.estimated_hours||'';
+  document.getElementById('ta-start').value = fmtDate(t?.start_date)||today();
+  document.getElementById('ta-due').value = fmtDate(t?.due_date)||'';
+  open_mo('mo-task');
+}
+
+async function saveTask(){
+  const title=document.getElementById('ta-title').value.trim();
+  if(!title){toast('El título es obligatorio','err');return}
+  const pid=document.getElementById('ta-pid').value;
+  const phid=document.getElementById('ta-phid').value;
+  const id=document.getElementById('ta-id').value;
+  const data={
+    project_id:pid,phase_id:phid||null,title,
+    description:document.getElementById('ta-desc').value.trim(),
+    status:document.getElementById('ta-status').value,
+    priority:document.getElementById('ta-priority').value,
+    assigned_to:document.getElementById('ta-assigned').value.trim(),
+    estimated_hours:parseFloat(document.getElementById('ta-hours').value)||0,
+    start_date:document.getElementById('ta-start').value||null,
+    due_date:document.getElementById('ta-due').value||null
+  };
+  try{
+    if(id){
+      const {data:updated, error} = await sb.from('tasks').update(data).eq('task_id', id).select().single();
+      if(error) throw error;
+      const i=db.tasks.findIndex(x=>x.task_id===id);db.tasks[i]=updated;toast('Tarea actualizada');
+    } else {
+      const {data:inserted, error} = await sb.from('tasks').insert({task_id:uid(),...data,completed_date:null}).select().single();
+      if(error) throw error;
+      db.tasks.push(inserted);addAct('Nueva tarea: '+title);toast('Tarea creada');
+    }
+    close_mo('mo-task');scheduleSave();refreshAll();
+    if(currentView==='detail') renderDetail(pid||currentProjectId);
+  } catch(e) {
+    console.error(e); toast('Error al guardar la tarea: '+e.message,'err');
+  }
+}
+
+async function toggleTask(id){
+  const t=db.tasks.find(x=>x.task_id===id);if(!t)return;
+  const newStatus = t.status==='completed'?'pending':'completed';
+  const completed_date = newStatus==='completed'?now():null;
+  try{
+    const {data:updated, error} = await sb.from('tasks').update({status:newStatus, completed_date}).eq('task_id', id).select().single();
+    if(error) throw error;
+    Object.assign(t, updated);
+    scheduleSave();refreshAll();
+    if(currentView==='detail') renderDetail(currentProjectId);
+    else if(currentView==='tasks') renderTasks();
+    else if(currentView==='dashboard') renderDashboard();
+  } catch(e) {
+    console.error(e); toast('Error al actualizar la tarea: '+e.message,'err');
+  }
+}
+
+function deleteTask(id){
+  const t=db.tasks.find(x=>x.task_id===id);
+  confirm2(`¿Eliminar tarea "${t?.title}"?`,async ()=>{
+    const pid=t?.project_id;
+    try{
+      const {error} = await sb.from('tasks').delete().eq('task_id', id);
+      if(error) throw error;
+      db.tasks=db.tasks.filter(x=>x.task_id!==id);
+      toast('Tarea eliminada','info');scheduleSave();refreshAll();
+      if(currentView==='detail') renderDetail(pid||currentProjectId);
+      else if(currentView==='tasks') renderTasks();
+    } catch(e) {
+      console.error(e); toast('Error al eliminar la tarea: '+e.message,'err');
+    }
+  });
+}
+
+// ── NOTE CRUD ──────────────────────────────────────────────────────────
+function openNoteModal(pid,id){
+  const n = id ? db.notes.find(x=>x.note_id===id) : null;
+  document.getElementById('mnt').textContent = n ? 'Editar Nota' : 'Nueva Nota';
+  document.getElementById('no-id').value = n?.note_id||'';
+  document.getElementById('no-pid').value = pid||n?.project_id||'';
+  document.getElementById('no-select-pid').value = pid||n?.project_id||'';
+  document.getElementById('no-tag').value = n?.tag||'';
+  document.getElementById('no-content').value = n?.content||'';
+  document.getElementById('no-pinned').checked = n?.pinned ? true : false;
+  open_mo('mo-note');
+}
+
+async function saveNote(){
+  const content=document.getElementById('no-content').value.trim();
+  if(!content){toast('El contenido es obligatorio','err');return}
+  const id=document.getElementById('no-id').value;
+  const pid=document.getElementById('no-select-pid').value;
+  const data={
+    project_id:pid||null,
+    tag:document.getElementById('no-tag').value.trim(),
+    content,
+    pinned:document.getElementById('no-pinned').checked,
+    updated_at: now()
+  };
+  if(!db.notes) db.notes = [];
+  try{
+    if(id){
+      const {data:updated, error} = await sb.from('notes').update(data).eq('note_id', id).select().single();
+      if(error) throw error;
+      const i=db.notes.findIndex(x=>x.note_id===id);db.notes[i]=updated;toast('Nota actualizada');
+    } else {
+      const {data:inserted, error} = await sb.from('notes').insert({note_id:uid(),...data,created_at:now()}).select().single();
+      if(error) throw error;
+      db.notes.push(inserted);toast('Nota creada');
+    }
+    close_mo('mo-note');scheduleSave();refreshAll();
+    if(currentView==='detail') renderDetail(currentProjectId);
+    else if(currentView==='notes') renderNotes();
+  } catch(e) {
+    console.error(e); toast('Error al guardar la nota: '+e.message,'err');
+  }
+}
+
+function deleteNote(id){
+  confirm2('¿Eliminar esta nota?',async ()=>{
+    try{
+      const {error} = await sb.from('notes').delete().eq('note_id', id);
+      if(error) throw error;
+      db.notes=db.notes.filter(x=>x.note_id!==id);
+      toast('Nota eliminada','info');scheduleSave();refreshAll();
+      if(currentView==='detail') renderDetail(currentProjectId);
+      else if(currentView==='notes') renderNotes();
+    } catch(e) {
+      console.error(e); toast('Error al eliminar la nota: '+e.message,'err');
+    }
+  });
+}
+
+// ── INVOICE CRUD ───────────────────────────────────────────────────────
+function openInvModal(pid,id){
+  const inv = id ? db.invoices.find(x=>x.invoice_id===id) : null;
+  document.getElementById('mit').textContent = inv ? 'Editar Factura' : 'Nueva Factura';
+  document.getElementById('iv-id').value = inv?.invoice_id||'';
+  document.getElementById('iv-pid').value = pid||inv?.project_id||'';
+  document.getElementById('iv-ref').value = inv?.invoice_ref||'';
+  document.getElementById('iv-concept').value = inv?.concept||'';
+  document.getElementById('iv-amount').value = inv?.total_amount||'';
+  document.getElementById('iv-currency').value = inv?.currency||'EUR';
+  document.getElementById('iv-issue').value = fmtDate(inv?.issue_date)||today();
+  document.getElementById('iv-due').value = fmtDate(inv?.due_date)||'';
+  document.getElementById('iv-status').value = inv?.status||'draft';
+  open_mo('mo-invoice');
+}
+
+async function saveInvoice(){
+  const pid=document.getElementById('iv-pid').value;
+  const ref=document.getElementById('iv-ref').value.trim();
+  const concept=document.getElementById('iv-concept').value.trim();
+  const amount=parseFloat(document.getElementById('iv-amount').value)||0;
+  if(!pid||!ref||!concept||amount<=0){toast('Faltan campos obligatorios o importe inválido','err');return}
+  const id=document.getElementById('iv-id').value;
+  const data={
+    project_id:pid,invoice_ref:ref,concept,total_amount:amount,
+    currency:document.getElementById('iv-currency').value,
+    issue_date:document.getElementById('iv-issue').value||null,
+    due_date:document.getElementById('iv-due').value||null,
+    status:document.getElementById('iv-status').value
+  };
+  try{
+    if(id){
+      const {data:updated, error} = await sb.from('invoices').update(data).eq('invoice_id', id).select().single();
+      if(error) throw error;
+      const i=db.invoices.findIndex(x=>x.invoice_id===id);db.invoices[i]=updated;toast('Factura actualizada');
+    } else {
+      const {data:inserted, error} = await sb.from('invoices').insert({invoice_id:uid(),...data}).select().single();
+      if(error) throw error;
+      db.invoices.push(inserted);addAct(`Factura emitida ${ref}: ${amount}€`);toast('Factura creada');
+    }
+    close_mo('mo-invoice');scheduleSave();refreshAll();
+    if(currentView==='detail') renderDetail(pid||currentProjectId);
+    else if(currentView==='billing') renderBilling();
+  } catch(e) {
+    console.error(e); toast('Error al guardar la factura: '+e.message,'err');
+  }
+}
+
+function deleteInvoice(id) {
+  const inv=db.invoices.find(x=>x.invoice_id===id);
+  confirm2(`¿Eliminar la factura "${inv?.invoice_ref}"?`,async ()=>{
+    const pid=inv?.project_id;
+    try{
+      const {error} = await sb.from('invoices').delete().eq('invoice_id', id);
+      if(error) throw error;
+      db.invoices=db.invoices.filter(x=>x.invoice_id!==id);
+      toast('Factura eliminada','info');scheduleSave();refreshAll();
+      if(currentView==='detail') renderDetail(pid||currentProjectId);
+      else if(currentView==='billing') renderBilling();
+    } catch(e) {
+      console.error(e); toast('Error al eliminar la factura: '+e.message,'err');
+    }
+  });
+}
+
+// ── DOCUMENT CRUD ──────────────────────────────────────────────────────
+function openDocModal(pid,id){
+  const doc = id ? db.documents.find(x=>x.document_id===id) : null;
+  document.getElementById('mdct').textContent = doc ? 'Editar Documento' : 'Añadir Documento';
+  document.getElementById('dc-id').value = doc?.document_id||'';
+  document.getElementById('dc-pid').value = pid||doc?.project_id||'';
+  document.getElementById('dc-name').value = doc?.name||'';
+  document.getElementById('dc-type').value = doc?.type||'contract';
+  document.getElementById('dc-version').value = doc?.version||'v1.0';
+  document.getElementById('dc-url').value = doc?.url||'';
+  document.getElementById('dc-desc').value = doc?.description||'';
+  document.getElementById('dc-status').value = doc?.status||'draft';
+  open_mo('mo-doc');
+}
+
+async function saveDoc(){
+  const name=document.getElementById('dc-name').value.trim();
+  const pid=document.getElementById('dc-pid').value;
+  if(!name||!pid){toast('El nombre del documento es obligatorio','err');return}
+  const id=document.getElementById('dc-id').value;
+  const data={
+    project_id:pid,name,type:document.getElementById('dc-type').value,
+    version:document.getElementById('dc-version').value.trim(),
+    url:document.getElementById('dc-url').value.trim(),
+    description:document.getElementById('dc-desc').value.trim(),
+    status:document.getElementById('dc-status').value,
+    updated_at: now()
+  };
+  try{
+    if(id){
+      const {data:updated, error} = await sb.from('documents').update(data).eq('document_id', id).select().single();
+      if(error) throw error;
+      const i=db.documents.findIndex(x=>x.document_id===id);db.documents[i]=updated;toast('Documento actualizado');
+    } else {
+      const {data:inserted, error} = await sb.from('documents').insert({document_id:uid(),...data,created_at:now()}).select().single();
+      if(error) throw error;
+      db.documents.push(inserted);toast('Documento guardado');
+    }
+    close_mo('mo-doc');scheduleSave();refreshAll();
+    if(currentView==='detail') renderDetail(pid||currentProjectId);
+  } catch(e) {
+    console.error(e); toast('Error al guardar el documento: '+e.message,'err');
+  }
+}
+
+// ── RENDER DASHBOARD ──────────────────────────────────────────────────
+function renderDashboard(){
+  document.getElementById('s-active').textContent=db.projects.filter(p=>p.status==='active').length;
+  document.getElementById('s-active-s').textContent=`de ${db.projects.length} total`;
+  const pendingTasks=db.tasks.filter(t=>t.status!=='completed'&&t.status!=='cancelled').length;
+  document.getElementById('s-tasks').textContent=pendingTasks;
+  document.getElementById('s-tasks-s').textContent=`${db.tasks.filter(t=>t.status==='completed').length} completadas`;
+  const pendInv=db.invoices.filter(i=>i.status!=='paid').reduce((s,i)=>s+(+i.total_amount||0),0);
+  document.getElementById('s-pending').textContent=fmtCur(pendInv);
+
+  // Recent projects
+  const rp=[...db.projects].sort((a,b)=>new Date(b.updated_at||0)-new Date(a.updated_at||0)).slice(0,5);
+  const rpEl=document.getElementById('dash-projects');
+  if(!rp.length){
+    rpEl.innerHTML='<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><p>No hay proyectos activos</p><button class="btn btn-primary btn-sm" onclick="openProjModal()">Crear primer proyecto</button></div>';
+  } else {
+    rpEl.innerHTML='<div class="trow thead" style="grid-template-columns:1fr 110px 120px 90px"><div class="th">Proyecto</div><div class="th">Estado</div><div class="th">ETA</div><div class="th">Presupuesto</div></div>'+
+      rp.map(p=>`<div class="trow" style="grid-template-columns:1fr 110px 120px 90px" onclick="showDetail('${p.project_id}')">
+        <div><div style="font-weight:500;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--text3)">${p.client}</div></div>
+        <div>${badge(p.status)}</div>
+        <div>${etaBadge(p)}</div>
+        <div style="font-weight:500;text-align:right">${fmtCur(p.total_budget,p.currency)}</div>
+      </div>`).join('');
+  }
+
+  // Recent activity
+  const actEl=document.getElementById('dash-activity');
+  if(!activity.length){
+    actEl.innerHTML='<div style="color:var(--text3);font-size:12px;text-align:center;padding:20px 0">Sin actividad registrada</div>';
+  } else {
+    actEl.innerHTML=activity.slice(0,8).map(a=>`<div class="tlitem">
+      <div class="tltime">${new Date(a.time).toLocaleString('es-ES')}</div>
+      <div class="tltext">${a.text}</div>
+    </div>`).join('');
+  }
+  updateAlertBadges();
+}
+
+// ── RENDER PROJECTS LIST ──────────────────────────────────────────────
+function renderProjects(){
+  const search=(document.getElementById('pf-search').value||'').toLowerCase();
+  const status=document.getElementById('pf-status').value;
+  let list=db.projects.filter(p=>{
+    if(search && !p.name.toLowerCase().includes(search) && !p.client.toLowerCase().includes(search)) return false;
+    if(status && p.status!==status) return false;
+    return true;
+  });
+  const el=document.getElementById('projects-list');
+  if(!list.length){
+    el.innerHTML='<div class="empty"><p>No se encontraron proyectos con esos filtros</p></div>';return;
+  }
+  el.innerHTML=list.map(p=>{
+    const tasks=db.tasks.filter(t=>t.project_id===p.project_id);
+    const done=tasks.filter(t=>t.status==='completed').length;
+    const pct=tasks.length ? Math.round((done/tasks.length)*100) : 0;
+    return `<div class="trow proj-trow" onclick="showDetail('${p.project_id}')">
+      <div><div style="font-weight:500;font-size:13px">${p.name}</div><div style="font-size:11px;color:var(--text3)">${p.client}</div></div>
+      <div style="color:var(--text2)">${p.manager||'—'}</div>
+      <div>${badge(p.status)}</div>
+      <div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">${pct}% (${done}/${tasks.length})</div><div class="pbar"><div class="pfill" style="width:${pct}%;background:${pct===100?'var(--green)':''}"></div></div></div>
+      <div>${etaBadge(p)}</div>
+      <div style="font-weight:500;text-align:right">${fmtCur(p.total_budget,p.currency)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER DETAIL PROJECT ─────────────────────────────────────────────
+function renderDetail(id){
+  const p=db.projects.find(x=>x.project_id===id);if(!p){goTo('projects');return}
+  const actions=document.getElementById('topbar-actions');
+  actions.innerHTML=`<button class="btn btn-secondary btn-sm" onclick="openProjModal('${p.project_id}')">✏️ Editar</button>
+                    <button class="btn btn-danger btn-sm" onclick="deleteProject('${p.project_id}')">🗑️ Eliminar</button>`;
+  
+  const totalInv=db.invoices.filter(i=>i.project_id===p.project_id).reduce((s,i)=>s+(+i.total_amount||0),0);
+  const paidInv=db.invoices.filter(i=>i.project_id===p.project_id&&i.status==='paid').reduce((s,i)=>s+(+i.total_amount||0),0);
+  
+  const tasks=db.tasks.filter(t=>t.project_id===p.project_id);
+  const notes=db.notes?.filter(n=>n.project_id===p.project_id)||[];
+  const docs=db.documents.filter(d=>d.project_id===p.project_id);
+
+  let etaConfigBlock = '';
+  if(p.eta_date){
+    const d=daysUntil(p.eta_date);
+    const stStr = p.eta_disabled ? '🚨 Alerta Desactivada / Silenciada' : `Quedan ${d} días (${fmtDateL(p.eta_date)})`;
+    etaConfigBlock = `<div class="eta-cfg" style="margin-top:0;margin-bottom:14px">
+      <div class="eta-cfg-title" style="color:var(--accent3)">🎯 Hito Logístico Crítico asignado: ${p.eta_name||'ETA'}</div>
+      <div style="font-size:12px;color:var(--text2)">${stStr} ${p.eta_notes?`· <i>"${p.eta_notes}"</i>`:''}</div>
+    </div>`;
+  }
+
+  document.getElementById('detail-content').innerHTML = `
+    <div class="dh">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px">${badge(p.status)} <span class="prio-${p.priority}">Prioridad ${p.priority==='high'?'Alta':p.priority==='medium'?'Media':'Baja'}</span></div>
+          <h2 class="dtitle">${p.name}</h2>
+          ${p.description?`<div style="color:var(--text2);font-size:13px;margin-top:5px;max-width:560px">${p.description}</div>`:''}
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'DM Serif Display',serif;font-size:26px;color:var(--green)">${fmtCur(p.total_budget,p.currency)}</div>
+          <div style="font-size:11px;color:var(--text3)">Presupuesto total</div>
+          <div style="font-size:12px;color:var(--accent3);margin-top:3px">${fmtCur(totalInv,p.currency)} facturado · ${fmtCur(paidInv,p.currency)} cobrado</div>
+        </div>
+      </div>
+      <div class="dmeta">
+        <div class="dmi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>${p.client}</div>
+        ${p.manager?`<div class="dmi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>${p.manager}</div>`:''}
+        <div class="dmi"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/></svg>${p.start_date?fmtDateL(p.start_date):'—'} al ${p.end_date?fmtDateL(p.end_date):'—'}</div>
+        <div>${etaBadge(p)}</div>
+      </div>
+      ${p.tags?`<div style="margin-top:12px">${p.tags.split(',').map(t=>`<span class="chip">${t.trim()}</span>`).join('')}</div>`:''}
+    </div>
+
+    ${etaConfigBlock}
+
+    <div class="tabs">
+      <button class="tab ${currentTab==='phases'?'active':''}" onclick="setTab('phases')">Fases y Tareas (${tasks.length})</button>
+      <button class="tab ${currentTab==='tasks'?'active':''}" onclick="setTab('tasks')">Vista de Lista</button>
+      <button class="tab ${currentTab==='billing'?'active':''}" onclick="setTab('billing')">Facturas y Cobros (${db.invoices.filter(i=>i.project_id===p.project_id).length})</button>
+      <button class="tab ${currentTab==='docs'?'active':''}" onclick="setTab('docs')">Documentos (${docs.length})</button>
+      <button class="tab ${currentTab==='notes'?'active':''}" onclick="setTab('notes')">Anotaciones (${notes.length})</button>
+    </div>
+
+    <div class="tpanel ${currentTab==='phases'?'active':''}">
+      <div class="shdr"><span class="stitle">Estructura de Fases</span><button class="btn btn-primary btn-sm" onclick="openPhaseModal('${p.project_id}')">+ Fase</button></div>
+      <div id="detail-phases-list"></div>
+    </div>
+
+    <div class="tpanel ${currentTab==='tasks'?'active':''}">
+      <div class="shdr"><span class="stitle">Todas las tareas</span><button class="btn btn-primary btn-sm" onclick="openTaskModal('${p.project_id}','','')">+ Tarea</button></div>
+      ${!tasks.length?'<div class="empty"><p>Sin tareas</p></div>':
+        `<div class="card">`+tasks.map(t=>`<div class="task-item" style="padding:10px 16px">
+          <div class="tchk ${t.status==='completed'?'done':''}" onclick="toggleTask('${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+          <div style="flex:1"><div class="ttitle ${t.status==='completed'?'struck':''}">${t.title}</div><div style="font-size:11px;color:var(--text3)">${db.phases.find(ph=>ph.phase_id===t.phase_id)?.name||'Sin fase'} ${t.assigned_to?'· 👤 '+t.assigned_to:''} ${t.due_date?'· 📅 '+fmtDateL(t.due_date):''}</div></div>
+          <div><span class="prio-${t.priority}" style="font-size:11px;text-transform:uppercase">${t.priority}</span></div>
+          <div style="margin-left:14px;display:flex;gap:4px">
+            <button class="bicon" onclick="openTaskModal('','','${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="bicon" onclick="deleteTask('${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+          </div>
+        </div>`).join('')+`</div>`
+      }
+    </div>
+
+    <div class="tpanel ${currentTab==='billing'?'active':''}">
+      <div class="shdr"><span class="stitle">Facturas emitidas del proyecto</span><button class="btn btn-primary btn-sm" onclick="openInvModal('${p.project_id}')">+ Emitir Factura</button></div>
+      ${!db.invoices.filter(i=>i.project_id===p.project_id).length?'<div class="empty"><p>No se han emitido facturas para este proyecto</p></div>':
+        `<div class="card"><div class="trow thead inv-trow"><div class="th">Ref</div><div class="th">Concepto</div><div class="th">Importe</div><div class="th">Emisión</div><div class="th">Vencimiento</div><div class="th">Estado</div></div>`+
+        db.invoices.filter(i=>i.project_id===p.project_id).map(inv=>`<div class="trow inv-trow" onclick="openInvModal('','${inv.invoice_id}')">
+          <div style="font-weight:600">${inv.invoice_ref}</div>
+          <div style="color:var(--text2)">${inv.concept}</div>
+          <div style="font-weight:600;color:var(--green)">${fmtCur(inv.total_amount,inv.currency)}</div>
+          <div style="font-size:12px">${fmtDateL(inv.issue_date)}</div>
+          <div style="font-size:12px">${fmtDateL(inv.due_date)||'—'}</div>
+          <div>${badge(inv.status)}</div>
+        </div>`).join('')+`</div>`
+      }
+    </div>
+
+    <div class="tpanel ${currentTab==='docs'?'active':''}">
+      <div class="shdr"><span class="stitle">Repositorio de Archivos</span><button class="btn btn-primary btn-sm" onclick="openDocModal('${p.project_id}')">+ Archivo / Link</button></div>
+      ${!docs.length?'<div class="empty"><p>No hay documentos cargados</p></div>':
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`+docs.map(d=>`<div class="doc-item">
+          <div class="doc-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:500;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">${d.name} <span style="font-size:10px;color:var(--text3)">${d.version}</span></div>
+            <div style="font-size:11px;color:var(--text3)">${d.type.toUpperCase()} · <span style="color:var(--accent3)">${d.status}</span></div>
+          </div>
+          <div style="display:flex;gap:4px">
+            ${d.url?`<a href="${d.url}" target="_blank" class="bicon" title="Abrir link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>`:''}
+            <button class="bicon" onclick="openDocModal('','${d.document_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+          </div>
+        </div>`).join('')+`</div>`
+      }
+    </div>
+
+    <div class="tpanel ${currentTab==='notes'?'active':''}">
+      <div class="shdr"><span class="stitle">Notas rápidas</span><button class="btn btn-primary btn-sm" onclick="openNoteModal('${p.project_id}')">+ Nota</button></div>
+      ${!notes.length?'<div class="empty"><p>No hay notas vinculadas</p></div>':
+        `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">`+notes.map(n=>`<div class="note-item ${n.pinned?'pinned':''}" onclick="openNoteModal('','${n.note_id}')">
+          <div class="nts">${n.tag?`<span class="ntag">${n.tag}</span>`:''} ${n.pinned?'<span class="ntag pin">📌 Fijado</span>':''} <span style="margin-left:auto">${fmtDateL(n.updated_at)}</span></div>
+          <div class="ncontent">${n.content}</div>
+        </div>`).join('')+`</div>`
+      }
+    </div>
+  `;
+
+  // Render Phases tree inside the first tab
+  const phList=document.getElementById('detail-phases-list');
+  const projectPhases=db.phases.filter(x=>x.project_id===p.project_id).sort((a,b)=>a.sort_order-b.sort_order);
+  if(!projectPhases.length){
+    phList.innerHTML='<div class="empty"><p>No hay fases configuradas. Crea una fase para empezar a ordenar tareas.</p></div>';
+  } else {
+    phList.innerHTML=projectPhases.map(ph=>{
+      const phTasks=db.tasks.filter(t=>t.phase_id===ph.phase_id);
+      const phDone=phTasks.filter(t=>t.status==='completed').length;
+      const phPct=phTasks.length ? Math.round((phDone/phTasks.length)*100) : 0;
+      return `<div class="phase-card open" id="phc-${ph.phase_id}">
+        <div class="phase-hdr" onclick="togglePh('${ph.phase_id}')">
+          <div style="font-weight:600;font-size:13px;display:flex;align-items:center;gap:6px">📁 ${ph.name}</div>
+          <div style="font-size:11px;color:var(--text3)">Orden: ${ph.sort_order}</div>
+          <div><div style="font-size:11px;color:var(--text2);margin-bottom:2px">${phPct}% (${phDone}/${phTasks.length})</div><div class="pbar" style="width:70px"><div class="pfill g" style="width:${phPct}%"></div></div></div>
+          <div style="grid-column:span 2;justify-self:end;display:flex;gap:4px" onclick="event.stopPropagation()">
+            <button class="btn btn-secondary btn-xs" onclick="openTaskModal('${p.project_id}','${ph.phase_id}','')">+ Tarea</button>
+            <button class="bicon" onclick="openPhaseModal('','${ph.phase_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+            <button class="bicon" onclick="deletePhase('${ph.phase_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+          </div>
+        </div>
+        <div class="phase-body">
+          ${!phTasks.length?'<div style="color:var(--text3);font-size:12px;padding:4px 0">Sin tareas asignadas a esta fase</div>':
+            phTasks.map(t=>`<div class="task-item">
+              <div class="tchk ${t.status==='completed'?'done':''}" onclick="toggleTask('${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              <div class="ttitle ${t.status==='completed'?'struck':''}">${t.title}</div>
+              <div style="font-size:11px;color:var(--text3);width:110px;text-overflow:ellipsis;overflow:hidden;white-space:nowrap">${t.assigned_to?'👤 '+t.assigned_to:''}</div>
+              <div style="font-size:11px;color:var(--text3);width:90px">${t.due_date?'📅 '+fmtDateL(t.due_date):''}</div>
+              <div style="width:70px"><span class="prio-${t.priority}" style="font-size:10px;text-transform:uppercase">${t.priority}</span></div>
+              <div style="display:flex;gap:4px">
+                <button class="bicon" onclick="openTaskModal('','','${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+                <button class="bicon" onclick="deleteTask('${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg></button>
+              </div>
+            </div>`).join('')
+          }
+        </div>
+      </div>`;
+    }).join('');
+  }
+}
+
+function setTab(t){currentTab=t;if(currentProjectId)renderDetail(currentProjectId)}
+function togglePh(id){document.getElementById('phc-'+id)?.classList.toggle('open')}
+
+// ── RENDER ALL TASKS ──────────────────────────────────────────────────
+function renderTasks(){
+  const search=(document.getElementById('tf-search')?.value||'').toLowerCase();
+  const fp=document.getElementById('tf-project')?.value||'';
+  const fs=document.getElementById('tf-status')?.value||'';
+  let list=db.tasks.filter(t=>{
+    if(search&&!t.title.toLowerCase().includes(search))return false;
+    if(fp&&t.project_id!==fp)return false;
+    if(fs&&t.status!==fs)return false;
+    return true;
+  }).sort((a,b)=>{
+    const d={pending:0,in_progress:1,completed:2,cancelled:3};
+    return (d[a.status]||0)-(d[b.status]||0)||new Date(a.due_date||'9999')-new Date(b.due_date||'9999');
+  });
+  const el=document.getElementById('tasks-list');
+  if(!list.length){el.innerHTML='<div class="empty"><p>Sin tareas con esos filtros</p></div>';return}
+  el.innerHTML=list.map(t=>{
+    const proj=db.projects.find(x=>x.project_id===t.project_id);
+    return `<div class="card" style="padding:12px 18px;display:flex;align-items:center;gap:12px">
+      <div class="tchk ${t.status==='completed'?'done':''}" onclick="toggleTask('${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+      <div style="flex:1">
+        <div style="font-size:11px;color:var(--text3);font-weight:600">${proj?.client} · ${proj?.name}</div>
+        <div class="ttitle ${t.status==='completed'?'struck':''}" style="font-size:14px;font-weight:500;margin:1px 0">${t.title}</div>
+        <div style="font-size:11px;color:var(--text2)">${t.assigned_to?'👤 '+t.assigned_to:''} ${t.due_date?' · 📅 Límite: '+fmtDateL(t.due_date):''}</div>
+      </div>
+      <div>${badge(t.status)}</div>
+      <div><span class="prio-${t.priority}" style="text-transform:uppercase;font-size:10px">${t.priority}</span></div>
+      <button class="bicon" onclick="openTaskModal('','','${t.task_id}')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER BILLING LIST ───────────────────────────────────────────────
+function renderBilling(){
+  const fp=document.getElementById('if-project').value;
+  const fs=document.getElementById('if-status').value;
+  let list=db.invoices.filter(i=>{
+    if(fp&&i.project_id!==fp)return false;
+    if(fs&&i.status!==fs)return false;
+    return true;
+  }).sort((a,b)=>new Date(b.issue_date)-new Date(a.issue_date));
+  
+  const total=list.reduce((s,i)=>s+(+i.total_amount||0),0);
+  const paid=list.filter(i=>i.status==='paid').reduce((s,i)=>s+(+i.total_amount||0),0);
+  document.getElementById('b-total').textContent=fmtCur(total);
+  document.getElementById('b-total-s').textContent=`${list.length} factura${list.length!==1?'s':''}`;
+  document.getElementById('b-paid').textContent=fmtCur(paid);
+  document.getElementById('b-paid-s').textContent=`${list.filter(i=>i.status==='paid').length} pagada${list.filter(i=>i.status==='paid').length!==1?'s':''}`;
+  document.getElementById('b-pend').textContent=fmtCur(total-paid);
+  document.getElementById('b-pend-s').textContent='restante';
+
+  const el=document.getElementById('billing-list');
+  if(!list.length){el.innerHTML='<div class="empty"><p>No se encontraron facturas</p></div>';return}
+  el.innerHTML=list.map(i=>{
+    const proj=db.projects.find(x=>x.project_id===i.project_id);
+    return `<div class="trow inv-trow" onclick="openInvModal('','${i.invoice_id}')">
+      <div style="font-weight:600">${i.invoice_ref}</div>
+      <div><div style="font-weight:500">${proj?.name||'Sin proyecto'}</div><div style="font-size:11px;color:var(--text3)">${i.concept}</div></div>
+      <div style="font-weight:600;color:var(--green)">${fmtCur(i.total_amount,i.currency)}</div>
+      <div style="font-size:12px">${fmtDateL(i.issue_date)}</div>
+      <div style="font-size:12px;color:${i.status==='overdue'?'var(--red)':''}">${fmtDateL(i.due_date)}</div>
+      <div>${badge(i.status)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── RENDER NOTES LIST ─────────────────────────────────────────────────
+function renderNotes(){
+  const search=(document.getElementById('nf-search')?.value||'').toLowerCase();
+  const fp=document.getElementById('nf-project')?.value||'';
+  if(!db.notes) db.notes=[];
+  let list=db.notes.filter(n=>{
+    if(search&&!n.content.toLowerCase().includes(search)&&!n.tag.toLowerCase().includes(search))return false;
+    if(fp&&n.project_id!==fp)return false;
+    return true;
+  }).sort((a,b)=>(b.pinned||0)-(a.pinned||0) || new Date(b.updated_at)-new Date(a.updated_at));
+  
+  const el=document.getElementById('notes-list');
+  if(!list.length){el.innerHTML='<div class="empty" style="grid-column:1/-1"><p>No hay anotaciones</p></div>';return}
+  el.innerHTML=list.map(n=>{
+    const proj=db.projects.find(x=>x.project_id===n.project_id);
+    return `<div class="note-item ${n.pinned?'pinned':''}" onclick="openNoteModal('','${n.note_id}')">
+      <div class="nts">
+        ${n.tag?`<span class="ntag">${n.tag}</span>`:''} 
+        ${n.pinned?'<span class="ntag pin">📌 Fijado</span>':''}
+        <span style="margin-left:auto">${fmtDateL(n.updated_at)}</span>
+      </div>
+      <div class="ncontent">${n.content}</div>
+      ${proj?`<div style="font-size:10px;color:var(--text3);margin-top:8px;border-top:1px solid var(--border);padding-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">💼 ${proj.name}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+// ── GLOBAL UPDATE HELPERS ─────────────────────────────────────────────
+function refreshAll(){
+  updateBadges();updateDropdowns();
+  if(currentView==='dashboard') renderDashboard();
+  else if(currentView==='projects') renderProjects();
+  else if(currentView==='tasks') renderTasks();
+  else if(currentView==='billing') renderBilling();
+  else if(currentView==='notes') renderNotes();
+}
+
+function updateBadges(){
+  document.getElementById('ct-projects').textContent=db.projects.length;
+  document.getElementById('ct-tasks').textContent=db.tasks.filter(t=>t.status!=='completed'&&t.status!=='cancelled').length;
+  document.getElementById('ct-notes').textContent=db.notes?.length||0;
+  updateAlertBadges();
+}
+
+function updateDropdowns(){
+  const pSel=document.getElementById('tf-project');
+  const iSel=document.getElementById('if-project');
+  const nSel=document.getElementById('nf-project');
+  const moISel=document.getElementById('iv-pid');
+  const moNSel=document.getElementById('no-select-pid');
+  
+  const opts='<option value="">Todos los proyectos</option>'+db.projects.map(p=>`<option value="${p.project_id}">${p.client} — ${p.name}</option>`).join('');
+  if(pSel) pSel.innerHTML=opts;
+  if(iSel) iSel.innerHTML=opts;
+  if(nSel) nSel.innerHTML=opts;
+  if(moNSel) moNSel.innerHTML='<option value="">Nota global / Sin proyecto</option>'+db.projects.map(p=>`<option value="${p.project_id}">${p.name}</option>`).join('');
+  if(moISel) moISel.innerHTML='<option value="">Seleccionar proyecto...</option>'+db.projects.map(p=>`<option value="${p.project_id}">${p.client} — ${p.name}</option>`).join('');
+}
+
+// ── DATA SYNC: INTERACTION WITH EXCEL (SheetJS) ──────────────────────
+function saveToExcel() {
+  const btn = document.getElementById('save-excel-btn');
+  const label = document.getElementById('save-excel-label');
+  btn.classList.add('saving');
+  label.textContent = 'Guardando...';
+
+  setTimeout(() => {
+    try {
+      const wb = XLSX.utils.book_new();
+      
+      // Transform mappings for perfect sheets formatting
+      const pSheet = db.projects.map(p=>({
+        'ID Proyecto': p.project_id, 'Nombre': p.name, 'Cliente': p.client, 'Manager': p.manager,
+        'Estado': p.status, 'Prioridad': p.priority, 'Presupuesto': p.total_budget, 'Moneda': p.currency,
+        'Inicio': p.start_date, 'Fin Previsto': p.end_date, 'Etiquetas': p.tags, 'Descripción': p.description,
+        'ETA Hito': p.eta_name, 'ETA Fecha': p.eta_date, 'ETA Dias Aviso': p.eta_warn, 'ETA Dias Urgente': p.eta_urgent, 'ETA Notas': p.eta_notes,
+        'ETA Silenciado': p.eta_disabled ? 'SI' : 'NO', 'Modificado': p.updated_at, 'Creado': p.created_at
+      }));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pSheet), 'Proyectos');
+
+      const phSheet = db.phases.map(ph=>({'ID Fase': ph.phase_id, 'ID Proyecto': ph.project_id, 'Fase': ph.name, 'Orden': ph.sort_order}));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(phSheet), 'Fases');
+
+      const tSheet = db.tasks.map(t=>({'ID Tarea': t.task_id, 'ID Proyecto': t.project_id, 'ID Fase': t.phase_id, 'Tarea': t.title, 'Descripción': t.description, 'Estado': t.status, 'Prioridad': t.priority, 'Asignado': t.assigned_to, 'Horas': t.estimated_hours, 'Inicio': t.start_date, 'Limite': t.due_date, 'Completado En': t.completed_date}));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(tSheet), 'Tareas');
+
+      const iSheet = db.invoices.map(i=>({'ID Factura': i.invoice_id, 'ID Proyecto': i.project_id, 'Referencia': i.invoice_ref, 'Concepto': i.concept, 'Importe': i.total_amount, 'Moneda': i.currency, 'Emision': i.issue_date, 'Vencimiento': i.due_date, 'Estado': i.status}));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(iSheet), 'Facturas');
+
+      const dSheet = (db.notes||[]).map(n=>({'ID Nota': n.note_id, 'ID Proyecto': n.project_id, 'Categoria': n.tag, 'Contenido': n.content, 'Fijado': n.pinned?'SI':'NO', 'Ultima Modif': n.updated_at}));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(dSheet), 'Notas');
+
+      const fSheet = db.documents.map(d=>({'ID Archivo': d.document_id, 'ID Proyecto': d.project_id, 'Nombre': d.name, 'Tipo': d.type, 'Version': d.version, 'Link URL': d.url, 'Descripcion': d.description, 'Estado': d.status, 'Creado': d.created_at}));
+      XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(fSheet), 'Documentos');
+
+      XLSX.writeFile(wb, EXCEL_FILENAME);
+      
+      unsavedChanges = 0;
+      updateUnsavedBar();
+      
+      btn.classList.remove('saving');
+      btn.classList.add('saved-ok');
+      label.textContent = '✓ Guardado en Excel';
+      
+      const dot = document.getElementById('save-dot');
+      const txt = document.getElementById('save-txt');
+      dot.className = 'save-dot saved';
+      txt.textContent = 'Excel guardado · ' + new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+      toast('✓ Guardado en ' + EXCEL_FILENAME);
+      addAct('Excel guardado: ' + EXCEL_FILENAME);
+      
+      setTimeout(() => {
+        btn.classList.remove('saved-ok');
+        label.textContent = 'Guardar en Excel';
+      }, 2500);
+    } catch(err) {
+      btn.classList.remove('saving');
+      label.textContent = 'Error al guardar';
+      toast('Error al escribir el archivo Excel','err');
+      console.error(err);
+      setTimeout(() => { label.textContent = 'Guardar en Excel'; }, 2500);
+    }
+  }, 600);
+}
+
+function exportExcel(){saveToExcel()}
+
+document.getElementById('file-inp').addEventListener('change', e => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      
+      const sheets = {Proyectos:[], Fases:[], Tareas:[], Facturas:[], Notas:[], Documentos:[]};
+      workbook.SheetNames.forEach(n => {
+        if(sheets[n]) sheets[n] = XLSX.utils.sheet_to_json(workbook.Sheets[n]);
+      });
+      
+      db.projects = sheets.Proyectos.map(p=>({
+        project_id: p['ID Proyecto']||uid(), name: p['Nombre']||'Sin nombre', client: p['Cliente']||'Sin cliente', manager: p['Manager']||'',
+        status: p['Estado']||'active', priority: p['Prioridad']||'medium', total_budget: parseFloat(p['Presupuesto'])||0, currency: p['Moneda']||'EUR',
+        start_date: p['Inicio']||'', end_date: p['Fin Previsto']||'', tags: p['Etiquetas']||'', description: p['Descripción']||'',
+        eta_name: p['ETA Hito']||'', eta_date: p['ETA Fecha']||'', eta_warn: parseInt(p['ETA Dias Aviso'])||7, eta_urgent: parseInt(p['ETA Dias Urgente'])||3, eta_notes: p['ETA Notas']||'',
+        eta_disabled: p['ETA Silenciado'] === 'SI' ? true : false, updated_at: p['Modificado']||now(), created_at: p['Creado']||now()
+      }));
+
+      db.phases = sheets.Fases.map(ph=>({phase_id: ph['ID Fase']||uid(), project_id: ph['ID Proyecto'], name: ph['Fase'], sort_order: parseInt(ph['Orden'])||1}));
+      db.tasks = sheets.Tareas.map(t=>({task_id: t['ID Tarea']||uid(), project_id: t['ID Proyecto'], phase_id: t['ID Fase']||null, title: t['Tarea'], description: t['Descripción']||'', status: t['Estado']||'pending', priority: t['Prioridad']||'medium', assigned_to: t['Asignado']||'', estimated_hours: parseFloat(t['Horas'])||0, start_date: t['Inicio']||null, due_date: t['Limite']||null, completed_date: t['Completado En']||null}));
+      db.invoices = sheets.Facturas.map(i=>({invoice_id: i['ID Factura']||uid(), project_id: i['ID Proyecto'], invoice_ref: i['Referencia'], concept: i['Concepto'], total_amount: parseFloat(i['Importe'])||0, currency: i['Moneda']||'EUR', issue_date: i['Emision']||null, due_date: i['Vencimiento']||null, status: i['Estado']||'draft'}));
+      db.notes = sheets.Notas.map(n=>({note_id: n['ID Nota']||uid(), project_id: n['ID Proyecto']||null, tag: n['Categoria']||'', content: n['Contenido']||'', pinned: n['Fijado'] === 'SI' ? true : false, created_at: n['Ultima Modif']||now(), updated_at: n['Ultima Modif']||now()}));
+      db.documents = sheets.Documentos.map(d=>({document_id: d['ID Archivo']||uid(), project_id: d['ID Proyecto'], name: d['Nombre'], type: d['Tipo']||'other', version: d['Version']||'v1.0', url: d['Link URL']||'', description: d['Descripcion']||'', status: d['Estado']||'draft', created_at: d['Creado']||now(), updated_at: d['Creado']||now()}));
+
+      toast('Subiendo datos importados a Supabase...', 'info');
+      setSyncStatus('syncing');
+      const results = await Promise.all([
+        db.projects.length ? sb.from('projects').upsert(db.projects, {onConflict:'project_id'}) : Promise.resolve({error:null}),
+        db.phases.length ? sb.from('phases').upsert(db.phases, {onConflict:'phase_id'}) : Promise.resolve({error:null}),
+        db.tasks.length ? sb.from('tasks').upsert(db.tasks, {onConflict:'task_id'}) : Promise.resolve({error:null}),
+        db.invoices.length ? sb.from('invoices').upsert(db.invoices, {onConflict:'invoice_id'}) : Promise.resolve({error:null}),
+        db.notes.length ? sb.from('notes').upsert(db.notes, {onConflict:'note_id'}) : Promise.resolve({error:null}),
+        db.documents.length ? sb.from('documents').upsert(db.documents, {onConflict:'document_id'}) : Promise.resolve({error:null}),
+      ]);
+      const failed = results.find(r=>r.error);
+      if (failed) throw failed.error;
+
+      unsavedChanges = 0;
+      updateUnsavedBar();
+      setSyncStatus('ok');
+      addAct('Base de datos importada desde Excel');
+      toast('✓ Excel importado correctamente en Supabase');
+      await loadFromSupabase();
+      refreshAll();
+    } catch(err) {
+      setSyncStatus('error');
+      toast('Error al importar/subir el Excel a Supabase: '+(err.message||err),'err');
+      console.error(err);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// ── CHECK ALERTS ON LOAD ──────────────────────────────────────────────
+function checkETAOnLoad() {
+  setTimeout(() => {
+    const list = getAlerts();
+    if(!list.length) return;
+    toast(`🔔 Tienes ${list.length} alertas críticas de hitos de entrega logísticos pendientes.`, 'info');
+    list.slice(0, 3).forEach((a, i) => {
+      setTimeout(() => {
+        const msg = `${a.project.client} -> ${a.project.eta_name || 'Hito ETA'}: ${a.days < 0 ? 'VENCIDO' : 'vence en ' + a.days + ' días'}`;
+        toast(msg, a.level==='overdue'?'err':a.level==='urgent'?'warn':'info');
+      }, i*800);
+    });
+  }, 800);
+}
+
+// ── PERIODIC ETA CHECK (every 60s) ────────────────────────────────────
+function startETAWatcher(){
+  setInterval(()=>{
+    updateAlertBadges();
+    if(alertPanelOpen) renderAlertPanel();
+  },60000);
+}
+
+// ── PERIODIC EXCEL REMINDER (every 10 min) ────────────────────────────
+function startSaveReminder() {
+  setInterval(() => {
+    if (unsavedChanges > 0) {
+      toast(`💾 Tienes ${unsavedChanges} cambios sin guardar en Excel. Pulsa "Guardar en Excel" para no perderlos.`, 'warn');
+    }
+  }, 10 * 60 * 1000); // 10 minutes
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  // La carga de datos y el arranque de la app ocurren en sb.auth.onAuthStateChange
+  // en cuanto se detecta una sesión activa (login existente o recién iniciado).
+  document.getElementById('auth-password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleAuthSubmit();
+  });
+
+  // Warn before closing if there are unsaved Excel changes
+  window.addEventListener('beforeunload', e => {
+    if (unsavedChanges > 0) {
+      const msg = `Tienes ${unsavedChanges} cambios sin guardar en el Excel. ¿Seguro que quieres salir?`;
+      e.preventDefault();
+      e.returnValue = msg;
+      return msg;
+    }
+  });
+
+  // Invoice project change
+  document.getElementById('iv-pid').addEventListener('change', e => {
+    const p = db.projects.find(x=>x.project_id===e.target.value);
+    if(p) document.getElementById('iv-currency').value = p.currency;
+  });
+});
+</script>
+</body>
+</html>
